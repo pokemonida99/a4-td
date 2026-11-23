@@ -126,7 +126,7 @@ function drawFoe(c, f, x, y, t) {
       c.save(); c.translate(Math.round(x), Math.round(y - bob)); if (v.flip === false && v.dir === 'side') c.scale(-1, 1);      // RPG 的敵人圖面向左；往右走時翻過來
       c.drawImage(im, Math.round(-im.width * k / 2), Math.round(-im.height * k), Math.round(im.width * k), Math.round(im.height * k)); c.restore(); }
   }
-  c.globalAlpha = 1; const h = (FOE_H[f.kind] || 48);
+  c.globalAlpha = 1; const h = fq0 ? Math.round(fq0.foot[1] * (fq0.scale || 1) * .92) : (FOE_H[f.kind] || 48);      // 新圖照實際身高放頭頂的東西
   if (f.hitT > 0) { c.globalAlpha = f.hitT / .15 * .5; c.fillStyle = '#fff'; c.fillRect(x - 12, y - h * .8, 24, h * .6); c.globalAlpha = 1; }
   if (f.slow > 0) { c.fillStyle = 'rgba(127,212,240,.85)'; c.fillRect(x - 13, y - 3, 4, 4); c.fillRect(x + 9, y - 5, 4, 4); }
   if (f.burnT > 0 && Math.floor(t * 10) % 2) { c.fillStyle = '#ff7a2e'; c.fillRect(x - 4 + Math.sin(t * 9) * 6, y - h * .6, 4, 6); }
