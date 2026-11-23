@@ -270,7 +270,7 @@ function drawFx(c, dt) {
       const q = Math.min(1, k / .6), ez = q * q * (3 - 2 * q), fx = e.x0 + (e.x1 - e.x0) * ez, fy = e.y0 + (e.y1 - e.y0) * ez - Math.sin(q * Math.PI) * 80;
       if (k < .6) icon(c, e.ic, MX + fx, MY + fy, 40); else { c.globalAlpha = 1 - (k - .6) / .4; text(e.v, e.x1 + 30, e.y1 + 8 - (k - .6) * 30, { px: 26, col: '#ff6a5a', stroke: '#1a0f08', sw: 4, w: 900 }); c.globalAlpha = 1; }
     } else if (e.k === 'ico') {
-      const y = Math.max(78, MY + e.y - k * 24), s2 = e.big ? 44 : 30;      // 不要飄進頂部介面 c.globalAlpha = k > .7 ? (1 - k) / .3 : 1; const pop = k < .15 ? .6 + k / .15 * .4 : 1;
+      const y = Math.max(78, MY + e.y - k * 24), s2 = e.big ? 44 : 30; c.globalAlpha = k > .7 ? (1 - k) / .3 : 1; const pop = k < .15 ? .6 + k / .15 * .4 : 1;      // y 夾住：不要飄進頂部介面
       icon(c, e.ic, MX + e.x - (e.v ? s2 * .4 : 0), y, s2 * pop); if (e.v) text(String(e.v), MX + e.x + s2 * .2, y + s2 * .25, { px: e.big ? 26 : 18, col: e.col || CREAM, stroke: '#1a0f08', sw: 4, w: 900 }); c.globalAlpha = 1;
     } else if (e.k === 'paper') {
       e.vy += 260 * dt; e.x += e.vx * dt; e.y += e.vy * dt; e.rot += e.vr * dt;
