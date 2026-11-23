@@ -10,8 +10,8 @@ await page.goto(`http://localhost:4660/?play&fresh=${Date.now()}`); await page.w
 const tap = async (x, y) => { await page.touchscreen.tap(x, y); await wait(250); };
 await page.evaluate(() => { __game.s.res = 400; __game.s.resMax = 999; });
 const slots = await page.evaluate(() => __game.s.slots.map(s => [s.x, s.y]));
-const ONLY = process.env.ONLY;      // ONLY=kui：全部放同一個人（檢查動畫用）
-for (const i of [0, 1, 2, 3, 6, 7, 8, 9]) { await tap(280, 536); if (ONLY) await page.evaluate(id => { __game.s.pending = { id, lv: 1 }; }, ONLY); await tap(slots[i][0], slots[i][1]); }
+const ONLY = process.env.ONLY, SIX = process.env.SIX ? ['kui', 'jie', 'kevin', 'yan', 'zhe', 'mi', 'kui', 'jie'] : null;      // SIX=1：預設六人各放一位      // ONLY=kui：全部放同一個人（檢查動畫用）
+for (const i of [0, 1, 2, 3, 6, 7, 8, 9]) { await tap(280, 536); const pid = ONLY || (SIX && SIX.shift()); if (pid) await page.evaluate(id => { __game.s.pending = { id, lv: 1 }; }, pid); await tap(slots[i][0], slots[i][1]); }
 const placed = await page.evaluate(() => __game.s.slots.filter(x => x.tw).map(x => x.tw.id).join(','));
 await page.screenshot({ path: `${OUT}/shot_0_placed.jpg`, type: 'jpeg', quality: 88 });
 await tap(194, 36); await page.evaluate(() => { __game.speed = 2; });
