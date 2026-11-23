@@ -5,7 +5,7 @@
 export const RULE = {
   lives: 20,                 // 下班底氣
   leak: 1, bossLeak: 5,      // 一般漏一隻扣 1、頭目扣 5；最終頭目（final）沒打倒＝直接輸
-  res0: 20, resMax: 30, resPerSec: 1, resWave: .04,   // 人力額度：開局 20、上限 30、每秒 +1（每過一波每秒再多 0.04）
+  res0: 20, resMax: 30, resPerSec: .6, resWave: .03,  // 人力額度：開局 20、上限 30、每秒 +0.6（每開一波每秒再多 0.03）
   sumCost: 10, discardBack: 5,                   // 緊急調派 10；報到中轉派退回 5
   sellBack: [5, 10, 20],     // 場上同事轉派退回的人力（依職級）
   pity: 3,                   // 連三次抽不到可合併對象，下一抽保證有
@@ -18,7 +18,7 @@ export const RULE = {
   fatK: .2, fatMax: 3, fatDecay: 15,   // 疲勞：每層攻速 −20%，最多 3 層，每 15 秒自己消一層
   mom: { kill: 1, boss: 15, wave: 8, merge: 2, cleanse: 2, cleanseCd: 6 }, momMax: 100,
   superCost: 100, superT: 12, superDmg: 1.6, superSpd: 1.35,
-  hpK: 3.2, hpGrow: .14, bossHpK: 1,   // 敵人血量 × hpK × (1 + hpGrow×(波數−1)) × 該波 hpK；頭目只乘 bossHpK
+  hpK: 3.2, hpGrow: .15, bossHpK: 1,   // 敵人血量 × hpK × (1 + hpGrow×(波數−1)) × 該波 hpK；頭目只乘 bossHpK
 };
 
 // kind：single 單體｜splash 範圍｜aura 身邊全打｜line 直線穿刺｜support 只支援不打（或很弱）｜summon 召喚
@@ -37,10 +37,10 @@ export const TOWERS = {
   senpai: { name: '學姊',   job: '偵探',     elem: 'slash', kind: 'single', dmg: 44, rate: 1.3, range: 250, target: 'strong', markT: 4, note: '遠距狙擊，標記放大弱點' },
   wu:     { name: '小蝶',   job: '舞者',     elem: 'slash', kind: 'aura',   dmg: 14, rate: .7,  range: 115, dance: 4, danceCut: .4, danceR: 130, note: '迴旋斬，跳舞讓旁人加快' },
   you:    { name: '老油條', job: '盜賊',     elem: 'slash', kind: 'single', dmg: 13, rate: .35, range: 140, target: 'weak', execute: .35, executeK: 1.8, note: '專挑殘血，快手補刀' },
-  fairy:  { name: '鼠仙女', job: '召喚師',   elem: 'holy',  kind: 'summon', dmg: 70, rate: 2.2, range: 180, mice: 2, miceSpd: 140, miceT: 5, miceStun: .4, note: '放老鼠沿走道衝撞' },
+  fairy:  { name: '鼠仙女', job: '召喚師',   elem: 'holy',  kind: 'summon', dmg: 70, rate: 2.2, range: 180, mice: 3, miceSpd: 140, miceT: 5, miceStun: .4, note: '放老鼠沿走道衝撞' },
   xu:     { name: '許許',   job: '藥師',     elem: 'ice',   kind: 'single', dmg: 22, rate: 1.2, range: 230, potion: 6, potionShots: 3, potionDmg: 10, note: '冰藥瓶，幫最累的人解乏' },
   zhe:    { name: '阿哲',   job: '槍兵',     elem: 'fire',  kind: 'line',   dmg: 30, rate: 1.3, range: 200, width: 26, pierce: 4, note: '火槍直線穿刺一整排' },
-  an:     { name: '小安',   job: '盾衛',     elem: 'ice',   kind: 'single', dmg: 22, rate: .9,  range: 122, cone: 6, coneT: 10, coneSlow: .5, note: '冰盾擊，放三角錐減速' },
+  an:     { name: '小安',   job: '盾衛',     elem: 'ice',   kind: 'single', dmg: 26, rate: .9,  range: 122, cone: 6, coneT: 10, coneSlow: .5, note: '冰盾擊，放三角錐減速' },
 };
 export const DEFAULT_TEAM = ['kui', 'jie', 'kevin', 'yan', 'zhe', 'mi'];
 export const TEAM_SIZE = 6;
@@ -67,13 +67,13 @@ export const FOES = {
              scroll: { walk: 8, first: 14, charge: 5, breakK: .06, broken: 5, brokenK: 1.6, hit: 2 } },
 };
 
-// 波次：groups 依序出場；at＝從這波開始算第幾秒出第一隻（不寫就接在上一組後面）；gap＝每隻間隔
+// 波次：hpK＝這波血量再乘（前幾波放寬）；groups 依序出場；at＝從這波開始算第幾秒出第一隻（不寫就接在上一組後面）；gap＝每隻間隔
 const G = (kind, n, gap, at) => ({ kind, n, gap, ...(at != null ? { at } : {}) });
 export const WAVES = [
   { name: '加班大隊報到',     groups: [G('minion', 14, 2.6)] },
-  { name: '催稿信差來了',     groups: [G('minion', 12, 2), G('courier', 10, 1.5, 18), G('minion', 6, 1.6)] },
-  { name: '公文櫃重甲兵',     groups: [G('minion', 14, 1.6), G('knight', 5, 4, 6), G('courier', 8, 1.2, 26), G('minion', 8, 1.5)] },
-  { name: '續命實習生',       groups: [G('intern', 12, 1.6), G('courier', 10, 1, 12), G('minion', 12, 1.3, 22), G('intern', 6, 1.5, 36)] },
+  { hpK: .8, name: '催稿信差來了',     groups: [G('minion', 12, 2), G('courier', 10, 1.5, 18), G('minion', 6, 1.6)] },
+  { hpK: .8, name: '公文櫃重甲兵',     groups: [G('minion', 14, 1.6), G('knight', 5, 4, 6), G('courier', 8, 1.2, 26), G('minion', 8, 1.5)] },
+  { hpK: .8, name: '續命實習生',       groups: [G('intern', 12, 1.6), G('courier', 10, 1, 12), G('minion', 12, 1.3, 22), G('intern', 6, 1.5, 36)] },
   { boss: 'chief', name: '甩鍋課長', groups: [G('minion', 14, 2), G('chief', 1, 1, 6), G('knight', 4, 5, 12), G('courier', 8, 1.2, 30)] },
   { name: '大媽同事',         groups: [G('minion', 16, 1.6), G('auntie', 4, 7, 4), G('knight', 5, 4.5, 10), G('courier', 8, 1, 34)] },
   { name: '信差衝刺',         groups: [G('courier', 24, .8), G('intern', 12, 1.3, 8), G('minion', 14, 1.2, 24), G('courier', 10, .7, 40)] },

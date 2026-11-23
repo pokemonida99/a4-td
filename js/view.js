@@ -39,12 +39,14 @@ export function slotAt(s, x, y) {
 }
 
 // ---------- 事件 → 特效 ----------
-const dirOf = (sx, sy, tx, ty) => { const dx = tx - sx, dy = ty - sy; return Math.abs(dy) > Math.abs(dx) * .9 ? (dy > 0 ? 'down' : 'up') : 'side'; };
+// 8 方向（11/23 使用者：角度要 8 個才細緻）：依目標的角度分 8 等份，右半邊直接用圖、左半邊翻轉
+const DIR8 = ['side', 'dside', 'down', 'dside', 'side', 'uside', 'up', 'uside'];
+const dirOf = (sx, sy, tx, ty) => { const a = Math.atan2((ty - sy) * 1.25, tx - sx), i = ((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8; return DIR8[i]; };
 export function fxFromEvents(s, G) {
   for (const e of s.ev) {
     if (e.k === 'shot') {
       const sl = s.slots[e.slot], tw = sl && sl.tw; if (!tw) continue;
-      const v = VIEW.tw[tw.uid] || (VIEW.tw[tw.uid] = {}); v.dir = e.dir || dirOf(sl.x, sl.y, e.x, e.y); v.flip = e.flip ?? (e.x < sl.x); v.actT = 0; v.acting = true;
+      const v = VIEW.tw[tw.uid] || (VIEW.tw[tw.uid] = {}); v.dir = dirOf(sl.x, sl.y, e.x, e.y); v.flip = e.x < sl.x; v.actT = 0; v.acting = true;
       FX.push({ k: 'shot', elem: e.elem, kind: e.kind, x0: sl.x, y0: sl.y - 30, x: e.x, y: e.y - 18, r: e.radius || 0, t: 0, life: e.kind === 'splash' ? .45 : .3, x2: e.x2, y2: e.y2 });
       const snd = { slash: 'slash', blunt: 'hit', fire: 'explosion', ice: 'break', holy: 'holy_cast', dark: 'dark_blast' }[e.elem] || 'hit';
       sfx(snd, e.elem === 'fire' ? .18 : .26, .95 + Math.random() * .15);
@@ -84,9 +86,10 @@ function waveNote(i) { const Wv = D.WAVES[i]; if (!Wv) return ''; const ks = [..
 // ---------- 角色圖 ----------
 function drawQ(c, key, anim, dir, flip, fr, x, y, sc = 1, alpha = 1) {
   const q = Q[key]; if (!q) return false;
+  if (!q.strips[`${anim}_${dir}`] && (dir === 'dside' || dir === 'uside')) dir = 'side';      // 斜向的圖還沒到：先用側面
   let st = q.strips[`${anim}_${dir}`], f = flip; if (!st) { st = q.strips[`${anim}_side`] || q.strips[`idle_${dir}`] || q.strips.idle_down; } if (!st) return false;
   const n = Math.max(1, Math.round(st.width / q.cell[0])), i = Math.min(n - 1, Math.floor(fr * n)) % n, k = (q.scale || 1) * sc;
-  c.save(); c.globalAlpha = alpha; c.translate(Math.round(x), Math.round(y)); if (f && dir === 'side') c.scale(-1, 1);
+  c.save(); c.globalAlpha = alpha; c.translate(Math.round(x), Math.round(y)); if (f && (dir === 'side' || dir === 'dside' || dir === 'uside')) c.scale(-1, 1);
   c.drawImage(st, i * q.cell[0], 0, q.cell[0], q.cell[1], Math.round(-q.foot[0] * k), Math.round(-q.foot[1] * k), Math.round(q.cell[0] * k), Math.round(q.cell[1] * k)); c.restore(); return true;
 }
 const ATK_MS = [80, 80, 80, 50, 50, 70, 80, 110];      // 出手 8 格的節奏（美術 session 建議；命中在第 5 格）
