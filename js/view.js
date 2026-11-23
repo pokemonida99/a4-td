@@ -2,7 +2,7 @@
 // 地圖座標（core 用的）是 1096×442，畫到畫面上要加 (MX, MY)。
 import * as C from './core.js';
 import * as D from './data.js';
-import { IMG, Q, sfx, bgm, jingle, TRAIT_IC } from './assets.js';
+import { IMG, Q, sfx, bgm, jingle, TRAIT_IC, RICON } from './assets.js';
 import { W, H, INK, INK2, CREAM, TEAL, RED, BRASS, GOLD, SANS, SERIF, ELEM, rnd, pats, font, text, wood, paper, stamp, button, bar, clip, stud } from './skin.js';
 
 export const MX = 0, MY = 0, MW = 1280, MH = 590;      // 地圖鋪滿全畫面，介面浮在上面（11/23 使用者要照參考圖的豐富度）
@@ -30,6 +30,13 @@ export function say(k, force) {
   VIEW.talk = { s: L[Math.floor(Math.random() * L.length)], t: 0, ic: IC[k] }; talkCd = 4;
 }
 
+// ---------- 路線與屬性 ----------
+export function ricon(c, code, x, y, s) { const m = RICON[code] || ''; if (m.startsWith('ui:')) return icon(c, m.slice(3), x, y, s); const im = IMG['ic_' + m]; if (im) { c.drawImage(im, Math.round(x - s / 2), Math.round(y - s / 2), s, s); return true; } return icon(c, 'promote', x, y, s); }
+const TRAIT_UI = { camo: 'tr_camo', armor: 'tr_armor', magic: 'tr_resist', regen: 'tr_regen', split: 'tr_split', fast: 'tr_fast' };
+export const TRAIT_TXT = { camo: ['掛名', '看不到！要有人揭露才打得到'], armor: ['重甲', '傷害打六折，破甲後才痛'], magic: ['術抗', '火冰光暗只剩三成，用斬、打'], regen: ['再生', '沒挨打就回血，封住再生'], split: ['轉寄', '倒下吐出小公文，準備範圍攻擊'], fast: ['快遞', '跑很快，減速或終點補刀'] };
+const routeData = tw => tw && tw.route ? D.ROUTES?.[tw.id]?.[tw.route] : null;
+const lv3List = s => s.slots.filter(q => q.tw && q.tw.lv >= 3 && routeData(q.tw)).sort((a, b) => (VIEW.lv3T?.[b.tw.uid] || 0) - (VIEW.lv3T?.[a.tw.uid] || 0));
+
 // ---------- 點擊區 ----------
 const zone = (x, y, w, h, key) => VIEW.zones.push([x, y, w, h, key]);
 export function hudHit(G, x, y) { for (let i = VIEW.zones.length - 1; i >= 0; i--) { const [zx, zy, w, h, k] = VIEW.zones[i]; if (x >= zx && x <= zx + w && y >= zy && y <= zy + h) return k; } return null; }
@@ -43,6 +50,7 @@ export function slotAt(s, x, y) {
 // 8 方向（11/23 使用者：角度要 8 個才細緻）：依目標的角度分 8 等份，右半邊直接用圖、左半邊翻轉
 const DIR8 = ['side', 'dside', 'down', 'dside', 'side', 'uside', 'up', 'uside'];
 const dirOf = (sx, sy, tx, ty) => { const a = Math.atan2((ty - sy) * 1.25, tx - sx), i = ((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8; return DIR8[i]; };
+function lv3Mark(s, i) { const tw = s.slots[i]?.tw; if (tw) (VIEW.lv3T || (VIEW.lv3T = {}))[tw.uid] = performance.now(); }
 export function fxFromEvents(s, G) {
   for (const e of s.ev) {
     if (e.k === 'shot') {
@@ -52,16 +60,22 @@ export function fxFromEvents(s, G) {
       const snd = { slash: 'slash', blunt: 'hit', fire: 'explosion', ice: 'break', holy: 'holy_cast', dark: 'dark_blast' }[e.elem] || 'hit';
       sfx(snd, .3);
     } else if (e.k === 'dmg') {
-      const f = s.foes.find(q => Math.abs(q.x - e.x) < 3 && Math.abs(q.y - e.y) < 3), tone = f && f.guard ? 'guard' : f && f.broken ? 'broken' : e.weak ? 'weak' : '';
+      const f = s.foes.find(q => Math.abs(q.x - e.x) < 3 && Math.abs(q.y - e.y) < 3), tone = e.res ? 'guard' : f && f.guard ? 'guard' : f && f.broken ? 'broken' : e.weak ? 'weak' : '';
       const old = FX.find(q => q.k === 'num' && q.dmg && q.t < .3 && Math.abs(q.x0 - e.x) < 24 && Math.abs(q.y0 - e.y) < 18);      // 同一隻 0.3 秒內合併成一個數字
       if (old) { old.v += e.v; old.t = Math.min(old.t, .08); if (tone) old.tone = tone; }
       else FX.push({ k: 'num', dmg: true, x0: e.x, y0: e.y, x: e.x + (Math.random() * 14 - 7), y: Math.max(84, e.y - 46), v: e.v, tone, t: 0, life: .75 }); }
     else if (e.k === 'die') { for (let i = 0; i < (e.boss ? 26 : 7); i++) FX.push({ k: 'paper', x: e.x, y: e.y - 20, vx: (Math.random() - .5) * 160, vy: -60 - Math.random() * 120, rot: Math.random() * 6, vr: (Math.random() - .5) * 12, t: 0, life: .9 + Math.random() * .4 }); if (e.boss) { sfx('boss_down', .8); VIEW.shake = .5; VIEW.bossKind = null; } else sfx('pop', .32); }
     else if (e.k === 'leak') { VIEW.flash = .5; VIEW.shake = .25; sfx('defeat', .35); say('leak'); if (s.lives <= s.livesMax * .3) say('low', true); }
     else if (e.k === 'summon') { FX.push({ k: 'pop', slot: e.slot, t: 0, life: .5 }); sfx('confirm', .5); }
-    else if (e.k === 'pending') { VIEW.pendT = 0; }
+    else if (e.k === 'pending') { VIEW.pendT = 0; G.pickOpen = false; }
+    else if (e.k === 'route') { const sl = s.slots[e.slot], rd = sl && routeData(sl.tw); if (sl) FX.push({ k: 'rico', code: rd?.icon, x: sl.x, y: sl.y - 96, t: 0, life: 1.2 }); sfx('buff', .7); }
+    else if (e.k === 'skill') { const sl = s.slots[e.slot], rd = sl && routeData(sl.tw); if (sl) FX.push({ k: 'rico', code: rd?.icon, x: sl.x, y: sl.y - 96, t: 0, life: 1.2, big: true }); if (e.r && e.x != null) FX.push({ k: 'unite', x: e.x, y: e.y, r: e.r, t: 0, life: 1 }); else if (e.x2 != null) FX.push({ k: 'unite', x: e.x, y: e.y, x2: e.x2, y2: e.y2, t: 0, life: 1 }); VIEW.shake = .3; sfx('unite', .8); }
+    else if (e.k === 'reveal') FX.push({ k: 'ico', ic: 'st_reveal', x: e.x, y: e.y - 70, t: 0, life: .8 });
+    else if (e.k === 'armorBreak') { FX.push({ k: 'ico', ic: 'st_broken', x: e.x, y: e.y - 70, t: 0, life: .8 }); sfx('break', .4); }
+    else if (e.k === 'split') { for (let i = 0; i < 10; i++) FX.push({ k: 'paper', x: e.x, y: e.y - 20, vx: (Math.random() - .5) * 200, vy: -80 - Math.random() * 100, rot: Math.random() * 6, vr: (Math.random() - .5) * 12, t: 0, life: .8 }); sfx('paper_storm', .5); }
+    else if (e.k === 'regen') FX.push({ k: 'ico', ic: 'tr_regen', x: e.x, y: e.y - 70, t: 0, life: .7 });
     else if (e.k === 'coin') { if (FX.filter(q => q.k === 'coinfly').length < 14) FX.push({ k: 'coinfly', x0: e.x, y0: e.y - 30, v: e.v, t: 0, life: .7 }); }
-    else if (e.k === 'upgrade') { FX.push({ k: 'merge', slot: e.slot, lv: e.lv, t: 0, life: 1.1 }); sfx('train', .7); sfx('coin', .5); say('merge'); }
+    else if (e.k === 'upgrade') { if (e.lv >= 3) lv3Mark(s, e.slot); FX.push({ k: 'merge', slot: e.slot, lv: e.lv, t: 0, life: 1.1 }); sfx('train', .7); sfx('coin', .5); say('merge'); }
     else if (e.k === 'clear') { FX.push({ k: 'ico', ic: 'coin', x: 640, y: 440, v: `+${e.coin}`, t: 0, life: 1.6, big: true }); sfx('coin', .7); }
     else if (e.k === 'unite') { FX.push({ k: 'unite', key: e.key, x: e.x, y: e.y, x2: e.x2, y2: e.y2, r: e.r || 150, t: 0, life: 1.2 }); VIEW.cut = { key: e.key, t: 0 }; VIEW.shake = .45; sfx('unite', .9); }
     else if (e.k === 'super') { const sl = s.slots[e.slot]; if (sl) { FX.push({ k: 'ico', ic: 'super', x: sl.x, y: sl.y - 90, t: 0, life: 1.2, big: true }); FX.push({ k: 'ring', x: sl.x, y: sl.y - 30, col: GOLD, t: 0, life: .8 }); } sfx('buff', .9); }
@@ -78,9 +92,9 @@ export function fxFromEvents(s, G) {
     else if (e.k === 'complain') { const f = s.foes.find(q => q.uid === e.uid) || { x: 640, y: 300 }; FX.push({ k: 'fly', ic: 'charge', x0: f.x, y0: f.y - 80, x1: 32, y1: 62, v: `−${e.v}`, t: 0, life: 1.1 }); VIEW.shake = .4; sfx('paper_storm', .8); say('complain', true); setTimeout(() => { VIEW.flash = .6; VIEW.heartT = .8; }, 650); }
     else if (e.k === 'down') FX.push({ k: 'ico', ic: 'revive', x: e.x, y: e.y - 50, t: 0, life: .8 });
     else if (e.k === 'revive') { FX.push({ k: 'ico', ic: 'life', x: e.x, y: e.y - 50, t: 0, life: .9 }); }
-    else if (e.k === 'merge') { FX.push({ k: 'merge', slot: e.slot, lv: e.lv, t: 0, life: 1.1 }); sfx('train', .7); say('merge'); }
+    else if (e.k === 'merge') { if (e.lv >= 3) lv3Mark(s, e.slot); FX.push({ k: 'merge', slot: e.slot, lv: e.lv, t: 0, life: 1.1 }); sfx('train', .7); say('merge'); }
     else if (e.k === 'move') sfx('cursor', .5);
-    else if (e.k === 'wave') { VIEW.banner = { n: e.n, boss: e.boss, t: 0 }; sfx(e.boss ? 'boss_appear' : 'encounter', .6); if (!e.boss) say('wave'); }
+    else if (e.k === 'wave') { if (e.teach && e.teach.length) VIEW.teach = { tr: e.teach, t: 0 }; VIEW.banner = { n: e.n, boss: e.boss, t: 0 }; sfx(e.boss ? 'boss_appear' : 'encounter', .6); if (!e.boss) say('wave'); }
     else if (e.k === 'boss') { VIEW.bossKind = e.kind; say('boss_' + e.kind) ; if (!LINES['boss_' + e.kind]) say('boss'); bgm('boss'); }
     else if (e.k === 'gen') FX.push({ k: 'ico', ic: 'res', x: s.slots[e.slot].x, y: s.slots[e.slot].y - 80, v: '+' + Math.round(e.v), t: 0, life: .9 });
     else if (e.k === 'win') { say('win', true); jingle('victory'); }
@@ -118,9 +132,10 @@ function drawFoe(c, f, x, y, t) {
   const fq0 = Q['foe_' + f.kind];
   const v = VIEW.foe[f.uid] || (VIEW.foe[f.uid] = { px: f.x, py: f.y, dir: 'side', flip: false });
   const dx = f.x - v.px, dy = f.y - v.py; if (Math.abs(dx) + Math.abs(dy) > .3) { v.dir = Math.abs(dy) > Math.abs(dx) ? (dy > 0 ? 'down' : 'up') : 'side'; v.flip = dx < 0; } v.px = f.x; v.py = f.y;
+  const hidden = f.traits?.includes('camo') && !(f.revealT > 0) && !(C.visible && C.visible(f));      // 掛名：沒現形就半透明
   const ph = (t * 1.25 * Math.max(.6, (F()[f.kind]?.spd || 46) / 46) * (f.slow > 0 ? 1 - f.slow : 1) + (f.ph || f.uid * .37)) % 1;      // 步伐跟移動速度走（信差快、被冰住會慢）
   if (f.down > 0 && !(fq0 && fq0.strips.fall_down)) c.globalAlpha = .45;
-  c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(x, y, f.boss ? 30 : 15, f.boss ? 8 : 5, 0, 0, 7); c.fill();
+  c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(x, y, f.boss ? 30 : 15, f.boss ? 8 : 5, 0, 0, 7); c.fill(); if (hidden) c.globalAlpha = .32;
   const fq = Q['foe_' + f.kind], pose = fq && (f.down > 0 && fq.strips.fall_down ? 'fall' : f.guard && fq.strips.guard_down ? 'guard' : f.charge > 0 && fq.strips.charge_down ? 'charge' : null);      // 特殊姿勢只有正面一張
   if (!drawQ(c, 'foe_' + f.kind, pose || (f.hitT > 0 && fq?.strips['hit_' + v.dir] ? 'hit' : 'walk'), pose ? 'down' : v.dir, v.flip, ph, x, y)) {
     const im = (f.hitT > 0 && IMG[`foe_${f.kind}_hit`]) || IMG[`foe_${f.kind}`]; if (!im) { c.fillStyle = RED; c.fillRect(x - 10, y - 30, 20, 30); }
@@ -144,7 +159,13 @@ function drawFoe(c, f, x, y, t) {
       icon(c, 'reticle', x + h * .55, y - h - 4 < 70 ? y + 2 : y - h - 4, 28); }
   }
   if (!f.boss && f.hp < f.max) { const bw = 30, hy = y - h - 8 < 56 ? y + 6 : y - h - 8; bar(x - bw / 2, hy, bw, 4, f.hp / f.max, '#d24a3a'); }      // 上走廊太高會被木牌蓋住，改畫腳下
-  const wk = F()[f.kind]?.weak; if (wk && wk[0] && !f.boss) icon(c, ELK[wk[0]], x + 20, y - h - 6, 20, (ELEM[wk[0]] || [''])[0]);
+  const oy2 = y - h - 8 < 60 ? y + 16 : y - h - 8;      // 頭上太高就畫腳下
+  (f.traits || []).slice(0, 2).forEach((tr, j) => icon(c, TRAIT_UI[tr], x - 10 + j * 22, oy2, 22));
+  const wk = F()[f.kind]?.weak; if (wk && wk[0] && !f.boss) icon(c, ELK[wk[0]], x + 12 + Math.min(2, (f.traits || []).length) * 22 - (f.traits?.length ? 0 : 0), oy2, 16, (ELEM[wk[0]] || [''])[0]);
+  if (f.breakT > 0) icon(c, 'st_broken', x - 24, y - h * .5, 20);
+  if (f.noRegenT > 0) icon(c, 'st_noregen', x + 24, y - h * .5, 20);
+  if (f.regenning) { c.fillStyle = '#5adc6a'; for (let j = 0; j < 3; j++) { const yy = y - h * .3 - ((t * 40 + j * 12) % 36); c.fillRect(x - 16 + j * 14, yy, 4, 7); c.fillRect(x - 18 + j * 14, yy + 2, 8, 3); } }
+  if (f.traits?.includes('camo') && f.revealT > 0) { c.strokeStyle = `rgba(255,230,120,${.5 + .3 * Math.sin(t * 8)})`; c.lineWidth = 2; c.beginPath(); c.ellipse(x, y - h * .45, h * .42, h * .58, 0, 0, 7); c.stroke(); }
 }
 
 // ---------- 地圖（新美術到之前用程式畫的走廊頂著） ----------
@@ -181,7 +202,8 @@ export function drawWorld(c, G, dt) {
   drawMap(c, s);
   // 射程（選中時）
   const sel = G.sel >= 0 ? s.slots[G.sel] : null;
-  if (sel && sel.tw) { const Dt = T()[sel.tw.id], rr = C.rangeOf ? C.rangeOf(sel.tw) : Dt.range; if (Dt && rr) { c.fillStyle = 'rgba(242,201,76,.1)'; c.strokeStyle = 'rgba(242,201,76,.6)'; c.lineWidth = 2; c.beginPath(); c.ellipse(MX + sel.x, MY + sel.y, rr, rr / 1.25, 0, 0, 7); c.fill(); c.stroke(); } }
+  if (sel && sel.tw) { const Dt = T()[sel.tw.id], rr = C.rangeOf ? C.rangeOf(sel.tw) : Dt.range; if (Dt && rr) { c.fillStyle = 'rgba(242,201,76,.1)'; c.strokeStyle = 'rgba(242,201,76,.6)'; c.lineWidth = 2; c.beginPath(); c.ellipse(MX + sel.x, MY + sel.y, rr, rr / 1.25, 0, 0, 7); c.fill(); c.stroke();
+    const ef = C.eff ? C.eff(sel.tw) : {}; if (ef.revealAura || ef.detect) { c.strokeStyle = 'rgba(120,200,255,.9)'; c.lineWidth = 3; c.setLineDash([10, 8]); c.beginPath(); c.ellipse(MX + sel.x, MY + sel.y, rr + 6, (rr + 6) / 1.25, 0, 0, 7); c.stroke(); c.setLineDash([]); icon(c, 'st_reveal', MX + sel.x + rr * .7, MY + sel.y - rr * .55, 28); } } }
   // 工位
   const pulse = .5 + .5 * Math.sin(t * 6);
   VIEW.mergeT = [];
@@ -207,6 +229,7 @@ export function drawWorld(c, G, dt) {
   for (const sl of VIEW.mergeT || []) icon(c, 'promote', MX + sl.x, MY + sl.y - 104 - Math.abs(Math.sin(t * 5)) * 6, 34, '↑');
   // 合體技瞄準：直線類亮整段走道、範圍類畫圓（跟著手指，沒有就放在敵人最多的地方）
   if (G.aim) { const u = (s.unites || D.UNITES).find(q => q.key === G.aim); if (u) drawAim(c, s, u, t); }
+  if (G.aimSkill != null && s.slots[G.aimSkill]?.tw) { const sk = C.skillOf(s.slots[G.aimSkill].tw); if (sk) drawAim(c, s, { kind: sk.kind === 'line' ? 'line' : 'area', radius: sk.r || 110 }, t); }
   // 特效
   drawFx(c, dt);
   if (VIEW.flash > 0) { VIEW.flash -= dt; c.fillStyle = `rgba(178,58,48,${VIEW.flash * .5})`; c.fillRect(MX, MY, MW, MH); }
@@ -244,6 +267,12 @@ function drawAim(c, s, u, t) {
     c.fillStyle = `rgba(127,212,240,${a * .4})`; c.strokeStyle = '#b083f0'; c.lineWidth = 4; c.beginPath(); c.ellipse(MX + cx, MY + cy, u.radius, u.radius / 1.25, 0, 0, 7); c.fill(); c.stroke(); icon(c, 'reticle', MX + cx, MY + cy, 44); }
   icon(c, 'finger', 640, 448 - Math.abs(Math.sin(t * 5)) * 8, 40);
 }
+function skillFace(c, tw, sk, x, y, s, ok) {
+  const rd = routeData(tw); c.fillStyle = '#1a0f08'; c.beginPath(); c.arc(x, y, s / 2, 0, 7); c.fill(); ricon(c, rd?.icon, x, y, s * .8);
+  const cd = tw.skillCd || 0, tot = sk?.cd || 40; if (cd > 0) { c.fillStyle = 'rgba(20,13,8,.6)'; c.beginPath(); c.moveTo(x, y); c.arc(x, y, s / 2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (cd / tot)); c.closePath(); c.fill(); num(Math.ceil(cd), x, y + 8, 20, { align: 'center' }); }
+  else { c.strokeStyle = `rgba(242,201,76,${.6 + .4 * Math.sin(performance.now() / 150)})`; c.lineWidth = 3; c.beginPath(); c.arc(x, y, s / 2 + 2, 0, 7); c.stroke(); }
+  head(c, tw.id, x + s * .42, y + s * .34, s * .42);
+}
 function rankGems(c, x, y, lv) {
   const n = D.RULE?.maxLv || 3, sz = 8, gap = 19, x0 = x - (n - 1) * gap / 2; c.fillStyle = 'rgba(20,12,6,.75)'; c.fillRect(x0 - 13, y - 11, (n - 1) * gap + 26, 22);
   for (let l = 1; l <= n; l++) { const cx = x0 + (l - 1) * gap; c.fillStyle = '#1a0f08'; c.beginPath(); c.moveTo(cx, y - sz - 2); c.lineTo(cx + sz + 2, y); c.lineTo(cx, y + sz + 2); c.lineTo(cx - sz - 2, y); c.fill();
@@ -271,6 +300,8 @@ function drawFx(c, dt) {
       if (e.x2 != null) { const g = 30 * (1 - k) + 8; c.strokeStyle = '#ff7a2e'; c.lineWidth = g; c.beginPath(); c.moveTo(MX + e.x, MY + e.y); c.lineTo(MX + e.x2, MY + e.y2); c.stroke(); c.strokeStyle = '#fff4e0'; c.lineWidth = g / 3; c.stroke(); }
       else { const r = e.r * Math.min(1, k * 3); c.fillStyle = 'rgba(127,212,240,.25)'; c.beginPath(); c.ellipse(MX + e.x, MY + e.y, r, r / 1.25, 0, 0, 7); c.fill(); c.strokeStyle = '#b083f0'; c.lineWidth = 5; c.stroke(); }
       c.globalAlpha = 1;
+    } else if (e.k === 'rico') {      // 路線／技能圖示從頭上冒出
+      const pop = k < .15 ? .5 + k / .15 * .5 : 1, s2 = (e.big ? 56 : 40) * pop; c.globalAlpha = k > .7 ? (1 - k) / .3 : 1; ricon(c, e.code, MX + e.x, Math.max(78, MY + e.y - k * 20), s2); c.globalAlpha = 1;
     } else if (e.k === 'coinfly') {      // 擊倒掉的金幣飛進左上的預算
       const [tx, ty] = VIEW.coinXY || [286, 26], q = Math.min(1, k / .85), ez = q * q, fx = e.x0 + (tx - e.x0) * ez, fy = e.y0 + (ty - e.y0) * ez - Math.sin(q * Math.PI) * 40;
       icon(c, 'coin', MX + fx, MY + fy, 18); if (k > .85 && !e.done) { e.done = true; VIEW.coinT = .25; }
@@ -348,7 +379,7 @@ export function drawHud(c, G, dt) {
     kinds.slice(0, 4).forEach((o, j) => { const y = ky + 54 + j * 34, im = IMG['foe_' + o.k], bossK = F()[o.k]?.boss;
       c.fillStyle = bossK ? 'rgba(178,58,48,.35)' : 'rgba(239,230,207,.12)'; c.fillRect(14, y - 15, 164, 30);
       foeMini(c, o.k, 34, y + 14, 28);
-      num(`×${o.n}`, 58, y + 7, 18); const wk = F()[o.k]?.weak?.[0]; if (wk) icon(c, ELK[wk], 160, y, 26, (ELEM[wk] || [''])[0]); }); }
+      num(`×${o.n}`, 58, y + 7, 18); const trs = F()[o.k]?.traits || []; trs.slice(0, 2).forEach((tr, j) => icon(c, TRAIT_UI[tr], 116 + j * 24, y, 24)); const wk = F()[o.k]?.weak?.[0]; if (wk) icon(c, ELK[wk], 164, y, 22, (ELEM[wk] || [''])[0]); }); }
   // 上緣：資源木牌
   const rx0 = 256; wood(rx0, 4, 380, 44);
   const cb = VIEW.coinT > 0 ? (VIEW.coinT -= dt, 1 + VIEW.coinT * 1.2) : 1;      // 金幣飛進來時跳一下
@@ -372,6 +403,12 @@ export function drawHud(c, G, dt) {
   if (s.wave === 0 && s.phase === 'break') { const b = Math.abs(Math.sin(t * 5)) * 10; if (pend) { const e = s.slots.find(q => !q.tw); if (e) icon(c, 'finger', MX + e.x, MY + e.y - 90 - b, 44); } else if (!s.slots.some(q => q.tw)) icon(c, 'finger', 244, by - 30 - b, 48); }
   // 報到中
   wood(370, by, 108, 92); icon(c, 'inbox', 388, by + 18, 26);
+  if (!pend && s.bag) { icon(c, 'bag', 458, by + 18, 24); s.bag.slice(0, 6).forEach((id, j) => head(c, id, 392 + (j % 3) * 32, by + 46 + Math.floor(j / 3) * 30, 28)); }      // 調派袋：這袋還沒抽到的人
+  if (C.canSummonPick && s.phase === 'break' && !pend && !s.pickUsed) {      // 波間：指定調派（貴一點）
+    const pc = C.pickCost(s), ok = C.canSummonPick(s), dn = VIEW.down === 'pick' || G.pickOpen; button(200, by - 72, 160, 66, '', { hot: ok, off: !ok, down: dn });
+    c.globalAlpha = ok ? 1 : .5; icon(c, 'pick', 236, by - 39, 40); c.globalAlpha = 1; icon(c, 'coin', 282, by - 39, 22); text(String(pc), 296, by - 31, { px: 20, col: ok ? INK : RED, w: 900 }); zone(198, by - 76, 164, 72, 'pick');
+    if (G.pickOpen) { const team = s.team || D.DEFAULT_TEAM, px = 200, py = by - 156; paper(px - 6, py - 6, team.length * 74 + 12, 82, {}); team.forEach((id, j) => { head(c, id, px + 37 + j * 74, py + 35, 62); zone(px + j * 74, py - 2, 74, 74, 'pick:' + id); }); }
+  } else G.pickOpen = false;
   if (pend) { c.save(); c.beginPath(); c.rect(374, by + 4, 100, 84); c.clip(); drawHero(c, s.pending.id, 428, by + 88, { t, sc: .9 }); c.restore();
     if (C.discard) { button(374, by - 72, 100, 66, '', { down: VIEW.down === 'discard' }); icon(c, 'refund', 402, by - 39, 34); text(`+${Math.round((s.pending.paid ?? s.sumCost) * (D.RULE?.discardBack ?? .6))}`, 422, by - 30, { px: 20, w: 900 }); zone(372, by - 76, 104, 72, 'discard'); } }
   // 選中同事
@@ -383,13 +420,29 @@ export function drawHud(c, G, dt) {
     const tic = IMG['ic_' + TRAIT_IC[sel.id]]; if (tic) { c.fillStyle = '#1a0f08'; c.beginPath(); c.arc(ix + 66, by + 70, 17, 0, 7); c.fill(); c.drawImage(tic, ix + 51, by + 55, 30, 30); zone(ix + 4, by + 4, 92, 88, 'trait'); }      // 整顆頭像都能點      // 特色圖示：點了說明
     text(Dt.name || sel.id, ix + 84, by + 30, { px: 20, fam: SERIF, w: 900 }); font(20, 900, SERIF); const nw = c.measureText(Dt.name || '').width;
     icon(c, ELK[Dt.elem], ix + 98 + nw, by + 23, 26, (ELEM[Dt.elem] || [''])[0]); rankGems(c, ix + 152 + nw, by + 24, sel.lv);
+    const rd = routeData(sel); if (rd) { c.fillStyle = '#1a0f08'; c.beginPath(); c.arc(ix + 18, by + 20, 17, 0, 7); c.fill(); ricon(c, rd.icon, ix + 18, by + 20, 28); }      // 路線徽章：貼在頭像左上
     const rr = C.rangeOf ? C.rangeOf(sel) : Dt.range;
     if (Dt.dmg) { icon(c, 'dmg', ix + 104, by + 66, 26); text(String(Math.round(Dt.dmg * C.lvK(sel.lv))), ix + 120, by + 74, { px: 18, w: 900 });
       icon(c, 'aspd', ix + 174, by + 66, 26); text(`${Dt.rate}s`, ix + 190, by + 74, { px: 18, w: 900 });
       icon(c, 'range', ix + 256, by + 66, 26); text(String(Math.round(rr)), ix + 272, by + 74, { px: 18, w: 900 }); }
     if (C.moveCost) { const mc = C.moveCost(s), mx = ix + 258; icon(c, 'move', mx, by + 22, 24); if (mc) { icon(c, 'coin', mx + 22, by + 22, 18); text(String(mc), mx + 32, by + 29, { px: 15, col: mc > (s.coin || 0) ? RED : INK, w: 900 }); } else text('0', mx + 16, by + 29, { px: 16, col: TEAL, w: 900 }); }
     button(ix + iw - 72, by + 8, 66, 76, '', { down: VIEW.down === 'sell' }); icon(c, 'refund', ix + iw - 39, by + 36, 36); text(`+${(D.RULE?.sellBack || [5, 10, 20])[sel.lv - 1]}`, ix + iw - 39, by + 74, { px: 17, align: 'center', w: 900 }); zone(ix + iw - 74, by + 4, 70, 84, 'sell');
-    if (C.upgradeCost) { const uc = C.upgradeCost(s, G.sel), can = C.canUpgrade(s, G.sel), ux = ix + iw - 136, uy = by - 78;      // 升職：花預算直接升一級（浮在資料卡右上）
+    const R = D.ROUTES?.[sel.id];
+    if (R && C.needRoute && C.needRoute(s, G.sel)) {      // 升到 II、還沒選路線：兩張路線卡（浮在資料卡上方）
+      ['a', 'b'].forEach((k, j) => { const r = R[k], cx = ix + j * 202, cy = by - 112; button(cx, cy, 196, 104, '', { hot: true, down: VIEW.down === 'route:' + k });
+        c.fillStyle = '#1a0f08'; c.beginPath(); c.arc(cx + 38, cy + 44, 28, 0, 7); c.fill(); ricon(c, r.icon, cx + 38, cy + 44, 48);
+        text(r.name, cx + 76, cy + 38, { px: 19, fam: SERIF, w: 900 }); wrap(c, r.note, cx + 76, cy + 62, 112, 18, { px: 14, col: INK2 }); text(k.toUpperCase(), cx + 180, cy + 26, { px: 16, align: 'right', col: TEAL, w: 900 });
+        zone(cx, cy, 196, 104, 'route:' + k); });
+      if (Math.floor(t * 2) % 2) icon(c, 'finger', ix + 200, by - 130, 34);
+    } else if (R && sel.lv >= 2 && sel.route && C.canReroute && s.phase === 'break') {      // 波間：改走另一條路線
+      const ok = C.canReroute(s, G.sel), ox = R[sel.route === 'a' ? 'b' : 'a'], rx2 = ix + iw - 240, ry = by - 78; button(rx2, ry, 98, 72, '', { off: !ok, down: VIEW.down === 'reroute' });
+      c.globalAlpha = ok ? 1 : .5; icon(c, 'reroute', rx2 + 26, ry + 26, 30); ricon(c, ox.icon, rx2 + 64, ry + 26, 30); c.globalAlpha = 1; icon(c, 'coin', rx2 + 30, ry + 56, 16); text(String(D.RULE?.rerouteCost ?? 12), rx2 + 40, ry + 62, { px: 15, w: 900 }); zone(rx2 - 2, ry - 2, 102, 76, 'reroute');
+    }
+    if (sel.lv >= 3 && C.skillOf && C.skillOf(sel)) {      // III 主動技能（浮在資料卡左上）
+      const sk = C.skillOf(sel), ok = C.canSkill(s, G.sel), sx = ix, sy = by - 78; button(sx, sy, 160, 72, '', { hot: ok, off: !ok, down: VIEW.down === 'skill' || G.aimSkill === G.sel });
+      skillFace(c, sel, sk, sx + 36, sy + 36, 50, ok); text(sk.name, sx + 68, sy + 42, { px: 16, fam: SERIF, w: 900, col: ok ? INK : '#8a7d66' }); zone(sx - 2, sy - 2, 164, 76, 'skill');
+    }
+    if (C.upgradeCost && !(R && C.needRoute && C.needRoute(s, G.sel))) { const uc = C.upgradeCost(s, G.sel), can = C.canUpgrade(s, G.sel), ux = ix + iw - 136, uy = by - 78;      // 升職：花預算直接升一級（浮在資料卡右上）
       button(ux, uy, 130, 72, '', { hot: can, off: !can, down: VIEW.down === 'upgrade' }); c.globalAlpha = can ? 1 : .5; icon(c, 'promote', ux + 36, uy + 36, 46, '↑'); c.globalAlpha = 1;
       if (isFinite(uc)) { icon(c, 'coin', ux + 76, uy + 36, 22); text(String(uc), ux + 90, uy + 44, { px: 20, col: (s.coin ?? 0) >= uc ? INK : RED, w: 900 }); } else rankGems(c, ux + 92, uy + 36, sel.lv);
       zone(ux - 2, uy - 2, 134, 76, 'upgrade'); }
@@ -403,15 +456,21 @@ export function drawHud(c, G, dt) {
   // 氣勢與主動技（按鈕 64 高；合體技缺誰就把誰變灰；氣勢不夠顯示要多少）
   const rx = 898, rw = W - rx - 8; wood(rx, by, rw, 92);
   icon(c, 'mom', rx + 18, by + 12, 22); bar(rx + 34, by + 7, rw - 46, 10, (s.momentum || 0) / 100, GOLD, { ticks: [.6] });
-  const UN = s.unites || D.UNITES || [], bw = (rw - 28) / 3, onField = id => s.slots.some(q => q.tw && q.tw.id === id);
+  const UN = s.unites || D.UNITES || [], superOn = C.useSuper && D.RULE?.superOn !== false, bw = superOn ? (rw - 28) / 3 : (rw - 35) / 4, onField = id => s.slots.some(q => q.tw && q.tw.id === id);
   UN.slice(0, 2).forEach((u, j) => { const ok = C.canUnite ? !!C.canUnite(s, u.key) : (s.momentum >= (u.cost || 60)), cd = (s.cds || {})[u.key] || 0, bx1 = rx + 7 + j * (bw + 7);
     button(bx1, by + 22, bw, 64, '', { off: !ok, hot: ok, down: VIEW.down === 'unite:' + u.key || G.aim === u.key });
     u.who.forEach((w, k) => { const here = onField(w); c.save(); if (!here) c.filter = 'grayscale(1) brightness(.6)'; c.globalAlpha = ok || here ? 1 : .6; head(c, w, bx1 + bw / 2 + (k ? 15 : -15), by + 50, 34); c.restore(); });
     if (cd > 0) num(Math.ceil(cd), bx1 + bw / 2, by + 60, 22, { align: 'center' });
     else if (!ok && u.who.every(onField) && (s.momentum || 0) < (u.cost || 60)) { icon(c, 'mom', bx1 + 16, by + 76, 16); text(String(u.cost || 60), bx1 + 26, by + 81, { px: 13, col: '#8a7d66', w: 900 }); }
     zone(bx1, by + 20, bw, 70, 'unite:' + u.key); });
-  if (C.useSuper) { const full = (s.momentum || 0) >= (D.RULE?.superCost || 100), bx2 = rx + rw - bw - 7, on = G.pickSuper; button(bx2, by + 22, bw, 64, '', { off: !full, hot: full, down: VIEW.down === 'super' || on });
+  if (!superOn) lv3List(s).slice(0, 2).forEach((q, j) => {      // 技能快捷鍵：最近升到 III 的兩位
+    const bx2 = rx + 7 + (2 + j) * (bw + 7), sk = C.skillOf(q.tw), ok = C.canSkill(s, q.i); button(bx2, by + 22, bw, 64, '', { hot: ok, off: !ok, down: VIEW.down === 'qs:' + q.i || G.aimSkill === q.i });
+    skillFace(c, q.tw, sk, bx2 + bw / 2, by + 54, 46, ok); zone(bx2, by + 20, bw, 70, 'qs:' + q.i); });
+  if (superOn) { const full = (s.momentum || 0) >= (D.RULE?.superCost || 100), bx2 = rx + rw - bw - 7, on = G.pickSuper; button(bx2, by + 22, bw, 64, '', { off: !full, hot: full, down: VIEW.down === 'super' || on });
     c.globalAlpha = full ? 1 : .5; icon(c, 'super', bx2 + bw / 2, by + 52, on ? 50 : 42, '★'); c.globalAlpha = 1; if (on) icon(c, 'finger', bx2 + bw / 2, by - 10 - Math.abs(Math.sin(t * 5)) * 8, 34); zone(bx2, by + 20, bw, 70, 'super'); }
+  if (VIEW.teach) { VIEW.teach.t += dt; if (VIEW.teach.t > 9) VIEW.teach = null; else { const trs = VIEW.teach.tr, cx = 196, cy = 404 - (trs.length - 1) * 50, k = Math.min(1, VIEW.teach.t / .25);
+    trs.forEach((tr, j) => { const y0 = cy + j * 50, xo = cx - (1 - k) * 400; paper(xo, y0, 330, 46, {}); icon(c, TRAIT_UI[tr], xo + 26, y0 + 23, 36); const [nm, ds] = TRAIT_TXT[tr] || ['', '']; text(nm, xo + 50, y0 + 30, { px: 18, fam: SERIF, w: 900 }); text(ds, xo + 100, y0 + 29, { px: 14, col: INK2, w: 700 }); });
+    zone(cx, cy, 330, trs.length * 50, 'teach'); } }
   // 暫停：地圖變暗，暫停鍵發亮；聲音開關在這裡
   if (G.paused) { c.fillStyle = 'rgba(20,13,8,.55)'; c.fillRect(0, 84, W, 400); const dn = VIEW.down === 'mute' ? 3 : 0; button(W / 2 - 50, 250, 100, 84, '', { down: VIEW.down === 'mute' }); icon(c, G.mute ? 'snd_off' : 'snd_on', W / 2, 292 + dn, 52, '♪'); zone(W / 2 - 54, 246, 108, 92, 'mute'); }
   G.zones = VIEW.zones;

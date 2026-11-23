@@ -12,6 +12,11 @@ const json = src => fetch(src).then(r => r.ok ? r.json() : null).catch(() => nul
 export const UI_ICONS = ['el_slash', 'el_blunt', 'el_fire', 'el_ice', 'el_holy', 'el_dark', 'res', 'coin', 'ko', 'life', 'wave', 'call', 'speed', 'pause', 'snd_on', 'snd_off', 'summon', 'inbox', 'dmg', 'aspd', 'range', 'refund', 'move', 'promote', 'mom', 'super', 'fatigue', 'shield', 'guard', 'charge', 'replay', 'home', 'ko2', 'call2', 'entrance', 'clock_ok', 'clock_ng', 'reticle', 'heart', 'finger', 'dizzy', 'revive', 'tr_camo', 'tr_armor', 'tr_resist', 'tr_regen', 'tr_split', 'tr_fast', 'st_broken', 'st_noregen', 'st_reveal', 'reroute', 'pick', 'bag'];
 // 每位同事的特色圖示（借本作的招式圖示 art/icons/sk_*）
 export const TRAIT_IC = { kui: 'sk_sweep', jie: 'sk_burn', kevin: 'sk_taunt', mi: 'sk_antidote', vivi: 'sk_rehire', yan: 'sk_freeze', heilun: 'sk_deal', cha: 'sk_errand', qiang: 'sk_box', senpai: 'sk_probe', wu: 'sk_dance', you: 'sk_backdoor', fairy: 'sk_mice', xu: 'sk_prescription', zhe: 'sk_escalate', an: 'sk_wetfloor' };
+// 路線圖示（data.js 的 routes.icon 代號）→ 借本作的招式圖示（ic_*）或介面圖示（ui_*）
+export const RICON = { r_seal: 'sk_gavel', r_sweep: 'sk_sweep', r_burn: 'sk_burn', r_eye: 'ui:st_reveal', r_crate: 'sk_box', r_door: 'sk_doorstop', r_bed: 'up_blanket', r_badge: 'ui:tr_camo',
+  r_crown: 'sk_rehire', r_stamp: 'sk_budget', r_snow: 'sk_freeze', r_seal2: 'ui:st_noregen', r_coin: 'up_raise', r_scope: 'sk_mark', r_tea: 'up_drinks', r_mic: 'sk_spotlight',
+  r_box: 'sk_carry', r_cutter: 'up_cutter', r_lens: 'sk_probe', r_file: 'up_dossier', r_spin: 'sk_encore', r_music: 'sk_dance', r_knife: 'sk_eager', r_block: 'sk_lock',
+  r_mouse: 'sk_mice', r_mouse2: 'sk_minutes', r_ice: 'sk_cooldown', r_hand: 'sk_handover', r_pierce: 'up_redpen', r_flame: 'up_ember', r_cone: 'sk_wetfloor', r_lock: 'sk_cordon' };
 export const HEROES = ['kui', 'jie', 'kevin', 'mi', 'yan', 'zhe', 'heilun', 'cha', 'qiang', 'senpai', 'you', 'xu', 'wu', 'fairy', 'an', 'vivi'];
 export const FOE_ART = { minion: 'minion', courier: 'courier', knight: 'knight', intern: 'intern', auntie: 'auntie', smoker: 'smoker', chief: 'chief', boss: 'boss', parrot: 'parrot', monkey: 'monkey', pig: 'pig', audit: 'audit', ghost: 'ghost', clerk: 'clerk', patcher: 'patcher', cart: 'cart', mini: 'mini' };      // 後五種只有新 Q 版圖（沒有 RPG 舊圖）
 const DIRS = ['down', 'dside', 'side', 'uside', 'up'];      // 8 方向：畫 5 個（斜前 dside、斜後 uside 都面向右），左邊翻轉
@@ -44,6 +49,7 @@ export async function loadAll(onProg) {
   jobs.push(img('art/map/pad.png').then(i => IMG.pad = i));
   jobs.push(json('art/map/pad.json').then(j => IMG.padMeta = j));
   for (const k of ['clock', 'boss', 'battle', 'shop', 'rest', 'recruit']) jobs.push(img(`art/icons/${k}.png`).then(i => IMG[`ic_${k}`] = i));
+  for (const k of new Set(Object.values(RICON).filter(v => !v.startsWith('ui:')))) jobs.push(img(`art/icons/${k}.png`).then(i => { if (i) IMG[`ic_${k}`] = i; }));
   for (const k of new Set(Object.values(TRAIT_IC))) jobs.push(img(`art/icons/${k}.png`).then(i => { if (i) IMG[`ic_${k}`] = i; }));
   for (const k of UI_ICONS) jobs.push(img(`art/ui/${k}.png`).then(i => { if (i) IMG[`ui_${k}`] = i; }));      // 介面圖示（tools/ui_icons.py 切的）
   let done = 0; const n = jobs.length;

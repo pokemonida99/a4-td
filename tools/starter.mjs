@@ -7,8 +7,8 @@ import { DEFAULT_TEAM, RULE, WAVES } from '../js/data.js';
 const mapFile = new URL('../art/map/office.json', import.meta.url);
 if (existsSync(mapFile)) C.setMap('office', JSON.parse(readFileSync(mapFile, 'utf8')));
 const TU = JSON.parse(process.env.TUNE || '{}'); for (const k in TU) { if (k.startsWith('W')) WAVES[+k.slice(1)].hpK = TU[k]; else RULE[k] = TU[k]; }
-const N = +process.argv[2] || 4, T = DEFAULT_TEAM, combos = [], uniq = Math.min(N, RULE.starterUnique || 0);
-// 前 starterUnique 抽不重複，之後可以重複
+const N = +process.argv[2] || 4, T = DEFAULT_TEAM, combos = [], uniq = Math.min(N, T.length);      // 抽袋：前 6 抽一定不重複
+// 抽袋：前 6 抽不重複，之後可以重複
 (function rec(st, a) { if (a.length === N) return combos.push(a); for (let i = a.length < uniq ? st : 0; i < T.length; i++) { if (a.length < uniq && a.includes(T[i])) continue; if (a.length >= uniq && a.length && i < T.indexOf(a[a.length - 1]) && a.length > uniq) continue; rec(a.length < uniq ? i + 1 : i, [...a, T[i]]); } })(0, []);
 const res = [];
 for (const team of combos) for (let r = 0; r < 3; r++) {

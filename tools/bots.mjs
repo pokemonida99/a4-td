@@ -1,9 +1,22 @@
 // 模擬用的自動打法（sim.mjs、diag.mjs 共用）
 import * as C from '../js/core.js';
-import { WAVES, TOWERS, FOES } from '../js/data.js';
+import { WAVES, TOWERS, FOES, ROUTE_TIP } from '../js/data.js';
 export const setR = r => { R = r; };
 let R = Math.random;
 const pickR = (s, a) => a[Math.floor(R() * a.length)];
+// 升到 II 還沒選路線的人：random／basic 隨便選，smart 照建議路線
+const routeAll = (s, how) => { for (const x of s.slots) if (C.needRoute(s, x.i)) C.chooseRoute(s, x.i, how === 'tip' ? ROUTE_TIP[x.tw.id] || 'a' : R() < .5 ? 'a' : 'b'); };
+// 主動技能：smart 挑時機，basic 好了就放
+function skills(s, smart) {
+  const boss = s.foes.some(f => f.boss), n = s.foes.length, camo = s.foes.some(f => f.camo && !(f.revealT > 0));
+  const tired = s.slots.reduce((a, x) => a + (x.tw ? x.tw.fatigue : 0), 0);
+  for (const x of s.slots) {
+    if (!C.canSkill(s, x.i)) continue; const K = C.skillOf(x.tw);
+    if (!smart) { if (n >= 5 || K.kind === 'coin') C.useSkill(s, x.i); continue; }
+    const want = K.kind === 'coin' ? true : K.kind === 'cleanse' ? tired >= 3 || boss : K.kind === 'global' && K.reveal ? camo || boss : K.kind === 'haste' && K.cleanse ? tired >= 3 || boss || n >= 12 : boss || n >= 8;
+    if (want) C.useSkill(s, x.i);
+  }
+}
 
 // 工位好壞：射程內走道長度（每 8 px 取樣）
 function coverage(s, i, r) { const L = s.lanes[0], sl = s.slots[i]; let n = 0; for (let d = 0; d <= L.L; d += 8) { const p = C.posAt(L, d); if (Math.hypot(p.x - sl.x, (p.y - sl.y) * 1.25) <= r) n++; } return n * 8; }
@@ -25,6 +38,7 @@ const power = T => C.lvK(T.lv);
 
 export const bots = {
   random(s) {
+    routeAll(s, 'rand');
     if (C.canSummon(s)) C.summon(s);
     if (s.pending) {
       const empty = s.slots.filter(x => !x.tw).map(x => x.i);
@@ -33,6 +47,7 @@ export const bots = {
     }
   },
   basic(s) {
+    routeAll(s, 'rand'); skills(s, false);
     if (C.canSummon(s)) C.summon(s);
     if (s.pending) {
       const empty = s.slots.filter(x => !x.tw).map(x => x.i);
@@ -44,7 +59,6 @@ export const bots = {
       }
     }
     for (const u of s.unites) if (C.canUnite(s, u.key) && s.foes.length >= 6) C.useUnite(s, u.key);
-    if (s.momentum >= 100) { const best = s.slots.filter(x => x.tw).sort((a, b) => b.tw.lv - a.tw.lv)[0]; if (best) C.useSuper(s, best.i); }
   },
   startOnly(s) {      // 真人新手：開局把錢花完（亂放），之後完全不花錢
     if (s.wave === 0 && C.canSummon(s)) C.summon(s);
@@ -54,6 +68,7 @@ export const bots = {
   smartNoUp(s) { return smartPlay(s, false); },      // 跟 smart 一樣但不花錢升職（比較升職值不值得）
 };
 function smartPlay(s, useUp) {
+  routeAll(s, 'tip'); skills(s, true);
   {
     const need = weakNeed(s);
     const val = (id, i) => slotValue(s, i, id) * (1 + (need[TOWERS[id].elem] ? .25 : 0));
@@ -68,7 +83,7 @@ function smartPlay(s, useUp) {
         let up = null;
         if (useUp) for (const x of s.slots) { const c = C.upgradeCost(s, x.i); if (!isFinite(c) || TOWERS[x.tw.id].kind === 'support') continue; const sc = val(x.tw.id, x.i) * (C.lvK(x.tw.lv + 1) - C.lvK(x.tw.lv)) / c; if (!up || sc > up.sc) up = { i: x.i, c, sc }; }
         const lv1 = s.slots.filter(x => x.tw.lv === 1).length;
-        if (up && s.coin >= up.c) C.upgrade(s, up.i);
+        if (up && s.coin >= up.c) C.upgrade(s, up.i, s.slots[up.i].tw.lv === 1 ? ROUTE_TIP[s.slots[up.i].tw.id] : undefined);
         else if (C.canSummon(s) && lv1 && (!up || s.sumCost * 2 < up.c - s.coin)) C.summon(s);
       }
     }

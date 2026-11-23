@@ -26,7 +26,7 @@ let lastTouch = 0; document.addEventListener('touchend', e => { const n = Date.n
 // ---------- 開局 ----------
 function newRun() {
   if (MAPJSON && C.setMap && !G.mapSet) { C.setMap('office', MAPJSON); G.mapSet = true; }
-  G.s = C.newGame({ seed: (Date.now() & 0xffffff) }); G.sel = -1; G.drag = null; G.paused = false; G.pickSuper = false; G.aim = null; resetView();
+  G.s = C.newGame({ seed: (Date.now() & 0xffffff) }); G.sel = -1; G.drag = null; G.paused = false; G.pickSuper = false; G.aim = null; G.aimSkill = null; G.pickOpen = false; resetView();
   G.scene = 'play'; bgm('battle'); say('intro');
 }
 G.newRun = newRun; G.say = say;      // 測試用
@@ -58,6 +58,7 @@ function tap(x, y) {
   const s = G.s, h = hudHit(G, x, y);
   if (h) return hud(h);
   if (G.aim) { const key = G.aim; G.aim = null; if (y > 60 && y < 486) act('unite', key, x, y); return; }
+  if (G.aimSkill != null) { const i = G.aimSkill; G.aimSkill = null; if (y > 60 && y < 486) C.useSkill(s, i, x, y); return; }
   const i = slotAt(s, x, y);
   if (G.pickSuper) { G.pickSuper = false; if (i >= 0 && s.slots[i].tw) act('super', i); return; }
   if (i < 0) { G.sel = -1; return; }
@@ -79,6 +80,12 @@ function hud(h) {
   if (h.startsWith('unite:') && C.useUnite) { const key = h.slice(6), u = (s.unites || D.UNITES).find(q => q.key === key); if (!C.canUnite(s, key)) { sfx('cursor', .3); return; } if (u && u.kind === 'team') { G.aim = null; return act('unite', key); } G.aim = G.aim === key ? null : key; G.pickSuper = false; sfx('cursor', .6); return; }      // 合體技：先瞄準，點地圖才發動
   if (h === 'super' && C.useSuper) { if (G.sel >= 0) { act('super', G.sel); G.pickSuper = false; return; } const full = (s.momentum || 0) >= ((D.RULE && D.RULE.superCost) || 100); if (!full) { sfx('cursor', .3); return; } G.pickSuper = !G.pickSuper; sfx('cursor', .6); return; }      // 沒選人：進入「選一位同事」模式
   if (h === 'deselect') { G.sel = -1; return; }
+  if (h.startsWith('route:') && G.sel >= 0) { if (C.chooseRoute(s, G.sel, h.slice(6))) sfx('confirm', .7); return; }
+  if (h === 'reroute' && G.sel >= 0) { const tw = s.slots[G.sel].tw; if (tw && C.reroute(s, G.sel, tw.route === 'a' ? 'b' : 'a')) sfx('confirm', .7); else sfx('cursor', .3); return; }
+  if (h === 'skill' || h.startsWith('qs:')) { const i = h === 'skill' ? G.sel : +h.slice(3), tw = s.slots[i] && s.slots[i].tw, sk = tw && C.skillOf(tw); if (!sk || !C.canSkill(s, i)) { sfx('cursor', .3); return; } if (sk.aim) { G.aimSkill = G.aimSkill === i ? null : i; G.aim = null; sfx('cursor', .6); } else C.useSkill(s, i); return; }      // 可瞄準的技能先瞄準
+  if (h === 'pick') { G.pickOpen = !G.pickOpen; sfx('cursor', .5); return; }
+  if (h.startsWith('pick:')) { G.pickOpen = false; if (C.summonPick(s, h.slice(5))) sfx('card', .8); else sfx('cursor', .3); return; }
+  if (h === 'teach') { VIEW.teach = null; return; }
   if (h === 'trait' && G.sel >= 0 && s.slots[G.sel].tw) { const id = s.slots[G.sel].tw.id; VIEW.tip = { s: (D.TOWERS[id] && D.TOWERS[id].note) || '', t: 0 }; sfx('cursor', .5); return; }
   if (h === 'call' && C.callWave) { if (C.callWave(s)) sfx('confirm', .7); return; }
 }
