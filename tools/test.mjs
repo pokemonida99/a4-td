@@ -36,10 +36,17 @@ const run = (s, sec) => { for (let i = 0; i < sec / C.DT; i++) { C.step(s); s.ev
   const s = C.newGame({ seed: 6 }); const c0 = s.coin; for (let i = 0; i < 4 / C.DT; i++) C.step(s);
   t('月薪：4 秒後多 1 元、而且是整數', s.coin === c0 + Math.floor(4 * RULE.salary) && Number.isInteger(s.coin));
 }
+{ // 新手保障：前幾抽不重複
+  let okAll = true;
+  for (let seed = 1; seed < 100; seed++) { const s = C.newGame({ seed }); s.coin = 9999; const got = [];
+    for (let i = 0; i < RULE.starterUnique; i++) { C.summon(s); got.push(s.pending.id); C.place(s, s.slots.findIndex(x => !x.tw)); }
+    if (new Set(got).size !== got.length) okAll = false; }
+  t(`前 ${RULE.starterUnique} 抽不重複`, okAll);
+}
 { // 保底：連三次抽不到可合併對象，下一抽保證有
   let okAll = true;
   for (let seed = 1; seed < 200; seed++) {
-    const s = C.newGame({ seed }); s.slots[0].tw = { uid: 1, id: 'kui', lv: 1 }; s.miss = RULE.pity; s.coin = 999;
+    const s = C.newGame({ seed }); s.slots[0].tw = { uid: 1, id: 'kui', lv: 1 }; s.miss = RULE.pity; s.coin = 999; s.sums = RULE.starterUnique;
     C.summon(s); if (s.pending.id !== 'kui') okAll = false;
   }
   t('保底抽到可合併的人', okAll);

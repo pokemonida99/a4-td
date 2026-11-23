@@ -12,6 +12,7 @@ export const RULE = {
   sellBack: [12, 40, 100],   // 場上同事轉派退回（依職級）
   upCost: [45, 110],         // 直接升職：I→II 45、II→III 110（同名合併免費）
   pity: 3,                   // 連三次抽不到可合併對象，下一抽保證有
+  starterUnique: 4,          // 新手保障：前 4 次調派一定抽到場上還沒有的人（開局不會抽到三個小米）
   maxLv: 3, lvK: [1, 1.8, 3.2], lvRange: .06,      // 職級倍率；每升一級射程 +6%
   moveCost: 10,              // 調位（搬／互換）花部門預算；波間第一次免費
   firstDelay: 12, breakT: 8, spawnK: .7,  // spawnK：波次表的時間（gap、at）整體再乘這個 // 開局準備秒數、波間秒數（可提早開波）
@@ -70,11 +71,11 @@ export const FOES = {
              scroll: { walk: 8, first: 14, charge: 5, breakK: .06, broken: 5, brokenK: 1.6, hit: 2 } },
 };
 
-// 波次：hpK＝這波血量再乘（第 1～4 波放寬：新手只買 3 位也要撐過前兩波）；groups 依序出場；at＝從這波開始算第幾秒出第一隻（不寫就接在上一組後面）；gap＝每隻間隔
+// 波次：hpK＝這波血量再乘（第 1～4 波放寬：新手開局買完就不再花錢，也要撐過前兩波；錢的壓力從第 3 波開始）；groups 依序出場；at＝從這波開始算第幾秒出第一隻（不寫就接在上一組後面）；gap＝每隻間隔
 const G = (kind, n, gap, at) => ({ kind, n, gap, ...(at != null ? { at } : {}) });
 export const WAVES = [
-  { hpK: .75, name: '加班大隊報到',     groups: [G('minion', 14, 2.6)] },
-  { hpK: .55, name: '催稿信差來了',     groups: [G('minion', 12, 2), G('courier', 10, 1.5, 18), G('minion', 6, 1.6)] },
+  { hpK: .65, name: '加班大隊報到',     groups: [G('minion', 14, 2.6)] },
+  { hpK: .4, name: '催稿信差來了',     groups: [G('minion', 12, 2), G('courier', 10, 1.5, 18), G('minion', 6, 1.6)] },
   { hpK: .6, name: '公文櫃重甲兵',     groups: [G('minion', 14, 1.6), G('knight', 5, 4, 6), G('courier', 8, 1.2, 26), G('minion', 8, 1.5)] },
   { hpK: .75, name: '續命實習生',       groups: [G('intern', 12, 1.6), G('courier', 10, 1, 12), G('minion', 12, 1.3, 22), G('intern', 6, 1.5, 36)] },
   { boss: 'chief', name: '甩鍋課長', groups: [G('minion', 14, 2), G('chief', 1, 1, 6), G('knight', 4, 5, 12), G('courier', 8, 1.2, 30)] },

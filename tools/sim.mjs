@@ -3,15 +3,16 @@
 //       basic ＝亂放但會合併（滿了就拖合併空出位置）、會用技能
 //       smart ＝挑好工位、會合併、滿場時花錢直接升職、看接下來兩波的弱點、頭目蓄力／理虧時才放合體技
 //       smartNoUp＝smart 但不升職（比較升職值不值得）
+//       startOnly＝真人新手：開局把錢花完（亂放），之後完全不花錢
 // --mix：每局從 16 人隨機挑 6 人（看每位同事強弱）。有 art/map/office.json 就用那張圖。
 // 單局細看：node tools/diag.mjs smart 1001　　規則自我檢查：node tools/test.mjs
 //
-// ===== 目前結果（2026-11-23 v0.2 單一貨幣＋前幾波放寬，office.json 新圖、預設隊伍、各 200 局，1 倍速遊戲時間）=====
-//   random    通關 31%　輸多在第 9～10 波；通關平均 14.1 分、剩底氣 5.5；結束時戰力 21.6
-//   basic     通關 100%　12.4 分、剩底氣 13.1；戰力 33.1
-//   smart     通關 100%　12.6 分、剩底氣 14.6；戰力 37.0（升職 9 次）
-//   smartNoUp 通關 100%　12.7 分、剩底氣 13.7；戰力 33.1 → 會升職的打法比較強
-//   新手只買 3 位不再花錢：第 2 波後平均剩 14.4 底氣（撐得過前兩波）
+// ===== 目前結果（2026-11-23 v0.2 單一貨幣＋新手前兩波保護，office.json 新圖、預設隊伍、各 200 局，1 倍速遊戲時間）=====
+//   startOnly 通關 0%　撐過第 1、2 波，輸在第 3 波 34%、第 4 波 66%
+//   random    通關 35%　輸多在第 9～10 波；通關平均 13.9 分、剩底氣 5.7；結束時戰力 21.6
+//   basic     通關 100%　12.3 分、剩底氣 12.8；戰力 33.1
+//   smartNoUp 通關 100%　12.6 分、剩底氣 13.2；戰力 33.1
+//   smart     通關 100%　12.5 分、剩底氣 14.4；戰力 37.0（升職 9 次）→ 會升職的打法比較強
 //   目標：亂放 20～40%、會打的 ≥90%、一局 10～15 分 → 預設隊伍達標。
 import { existsSync, readFileSync } from 'node:fs';
 import * as C from '../js/core.js';
@@ -23,7 +24,7 @@ if (existsSync(mapFile)) C.setMap('office', JSON.parse(readFileSync(mapFile, 'ut
 const N = +process.argv[2] || 100;
 const MIX = process.argv.includes('--mix');      // --mix：每局從 16 人隨機挑 6 人，看每位同事的強弱
 const args = process.argv.slice(3).filter(a => !a.startsWith('--'));
-const BOTS = args.length ? args : ['random', 'basic', 'smart'];
+const BOTS = args.length ? args : ['startOnly', 'random', 'basic', 'smartNoUp', 'smart'];
 const ALL = Object.keys(TOWERS);
 function teamOf(seed) { const r = C.mulberry(seed * 13 + 5), a = ALL.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, 6); }
 import { bots, setR } from './bots.mjs';

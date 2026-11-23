@@ -10,7 +10,7 @@ function coverage(s, i, r) { const L = s.lanes[0], sl = s.slots[i]; let n = 0; f
 const covCache = new Map();
 function cov(s, i, id) { const k = s.map.name + i + id; if (!covCache.has(k)) covCache.set(k, coverage(s, i, TOWERS[id].range)); return covCache.get(k); }
 const SUPPORT = { mi: 1, cha: 1, vivi: 1 };
-export const BOTS_NOTE = 'random 只會召喚亂放；basic 亂放＋合併＋技能；smart 挑位置＋合併＋升職＋技能；smartNoUp 同 smart 但不升職';
+export const BOTS_NOTE = 'random 只會召喚亂放；basic 亂放＋合併＋技能；smart 挑位置＋合併＋升職＋技能；smartNoUp 同 smart 但不升職；startOnly 開局花完就不再花';
 function slotValue(s, i, id) {
   if (SUPPORT[id]) { let n = 0; for (const o of s.slots) if (o.i !== i && Math.hypot(o.x - s.slots[i].x, (o.y - s.slots[i].y) * 1.25) <= TOWERS[id].range) n++; return n * 60 + cov(s, i, id) * .3; }
   return cov(s, i, id);
@@ -45,6 +45,10 @@ export const bots = {
     }
     for (const u of s.unites) if (C.canUnite(s, u.key) && s.foes.length >= 6) C.useUnite(s, u.key);
     if (s.momentum >= 100) { const best = s.slots.filter(x => x.tw).sort((a, b) => b.tw.lv - a.tw.lv)[0]; if (best) C.useSuper(s, best.i); }
+  },
+  startOnly(s) {      // 真人新手：開局把錢花完（亂放），之後完全不花錢
+    if (s.wave === 0 && C.canSummon(s)) C.summon(s);
+    if (s.pending) { const e = s.slots.filter(x => !x.tw).map(x => x.i); if (e.length) C.place(s, pickR(s, e)); else C.discard(s); }
   },
   smart(s) { return smartPlay(s, true); },
   smartNoUp(s) { return smartPlay(s, false); },      // 跟 smart 一樣但不花錢升職（比較升職值不值得）

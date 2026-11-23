@@ -7,7 +7,7 @@
 //   setMap(name, json)             換地圖（art/map/office.json：{ path, slots, gate, clock }；座標系跟著 json，現在是 1280×590）
 //   --- 玩家操作：成功回傳真值、失敗回傳 false／null，成功的都記進 s.log ---
 //   錢只有一種：部門預算 s.coin（舊的「人力額度」s.res 已拿掉）
-//   canSummon(s) / summon(s)       緊急調派：花 s.sumCost 預算（每調派一次 +RULE.sumStep），抽一位放進「報到中」s.pending={id,lv,paid}
+//   canSummon(s) / summon(s)       （前 RULE.starterUnique 抽保證跟場上不重複）緊急調派：花 s.sumCost 預算（每調派一次 +RULE.sumStep），抽一位放進「報到中」s.pending={id,lv,paid}
 //   canPlace(s, i) / place(s, i)   報到中 → 空工位；點到場上同名同級＝直接合併升級
 //   discard(s)                     報到中轉派：退回這次費用 × RULE.discardBack
 //   canMerge(s, a, b)              a、b 兩格同名同級且未滿級
@@ -97,7 +97,8 @@ const mergeable = s => new Set(s.slots.filter(x => x.tw && x.tw.lv === 1).map(x 
 export function summon(s) {
   if (!canSummon(s)) return null;
   const mg = mergeable(s), hit = s.pool.filter(id => mg.has(id));
-  const from = s.miss >= RULE.pity && hit.length ? hit : s.pool;
+  const fresh = s.pool.filter(id => !s.slots.some(x => x.tw && x.tw.id === id));      // 新手保障：前 RULE.starterUnique 抽不跟場上重複
+  const from = s.sums < RULE.starterUnique && fresh.length ? fresh : s.miss >= RULE.pity && hit.length ? hit : s.pool;
   const id = from[Math.floor(s.rnd() * from.length)];
   s.miss = mg.has(id) ? 0 : s.miss + 1;
   const paid = s.sumCost; s.coin -= paid; s.sums++; s.stat.sums++; s.stat.spent.summon += paid;
