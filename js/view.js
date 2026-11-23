@@ -138,7 +138,7 @@ function drawFoe(c, f, x, y, t) {
       icon(c, 'charge', bx - 18, by + 6, 30); bar(bx, by, bw, 8, f.charge, '#ff7a2e'); bar(bx, by + 12, bw, 8, Math.min(1, (f.chargeDmg || 0) / need), GOLD);
       c.save(); c.translate(x, y - h * .45); c.rotate(t * 2); if (!icon(c, 'reticle', 0, 0, h * 1.1)) { c.strokeStyle = '#ff5a4a'; c.lineWidth = 3; c.beginPath(); c.arc(0, 0, h * .5, 0, 7); c.stroke(); } c.restore(); }
   }
-  if (!f.boss && f.hp < f.max) { const bw = 30; bar(x - bw / 2, y - h - 8, bw, 4, f.hp / f.max, '#d24a3a'); }
+  if (!f.boss && f.hp < f.max) { const bw = 30, hy = y - h - 8 < 56 ? y + 6 : y - h - 8; bar(x - bw / 2, hy, bw, 4, f.hp / f.max, '#d24a3a'); }      // 上走廊太高會被木牌蓋住，改畫腳下
   const wk = F()[f.kind]?.weak; if (wk && wk[0] && !f.boss) icon(c, ELK[wk[0]], x + 20, y - h - 6, 20, (ELEM[wk[0]] || [''])[0]);
 }
 
@@ -254,7 +254,7 @@ function drawFx(c, dt) {
       const q = Math.min(1, k / .6), ez = q * q * (3 - 2 * q), fx = e.x0 + (e.x1 - e.x0) * ez, fy = e.y0 + (e.y1 - e.y0) * ez - Math.sin(q * Math.PI) * 80;
       if (k < .6) icon(c, e.ic, MX + fx, MY + fy, 40); else { c.globalAlpha = 1 - (k - .6) / .4; text(e.v, e.x1 + 30, e.y1 + 8 - (k - .6) * 30, { px: 26, col: '#ff6a5a', stroke: '#1a0f08', sw: 4, w: 900 }); c.globalAlpha = 1; }
     } else if (e.k === 'ico') {
-      const y = MY + e.y - k * 24, s2 = e.big ? 44 : 30; c.globalAlpha = k > .7 ? (1 - k) / .3 : 1; const pop = k < .15 ? .6 + k / .15 * .4 : 1;
+      const y = Math.max(78, MY + e.y - k * 24), s2 = e.big ? 44 : 30;      // 不要飄進頂部介面 c.globalAlpha = k > .7 ? (1 - k) / .3 : 1; const pop = k < .15 ? .6 + k / .15 * .4 : 1;
       icon(c, e.ic, MX + e.x - (e.v ? s2 * .4 : 0), y, s2 * pop); if (e.v) text(String(e.v), MX + e.x + s2 * .2, y + s2 * .25, { px: e.big ? 26 : 18, col: e.col || CREAM, stroke: '#1a0f08', sw: 4, w: 900 }); c.globalAlpha = 1;
     } else if (e.k === 'paper') {
       e.vy += 260 * dt; e.x += e.vx * dt; e.y += e.vy * dt; e.rot += e.vr * dt;
@@ -325,17 +325,17 @@ export function drawHud(c, G, dt) {
       foeMini(c, o.k, 34, y + 14, 28);
       num(`×${o.n}`, 58, y + 7, 18); const wk = F()[o.k]?.weak?.[0]; if (wk) icon(c, ELK[wk], 160, y, 26, (ELEM[wk] || [''])[0]); }); }
   // 上緣：資源木牌
-  const rx0 = 256; wood(rx0, 8, 380, 50);
+  const rx0 = 256; wood(rx0, 4, 380, 44);
   const resK = Math.min(1, s.res / Math.max(1, s.sumCost));
-  icon(c, 'res', rx0 + 26, 33, 34, '人'); num(Math.floor(s.res), rx0 + 48, 43, 25, { col: resK >= 1 ? GOLD : CREAM });
-  icon(c, 'coin', rx0 + 158, 33, 32, '$'); num(s.coin ?? 0, rx0 + 178, 43, 22);
-  icon(c, 'ko2', rx0 + 268, 33, 32, 'KO'); num(s.kills, rx0 + 288, 43, 22);
+  icon(c, 'res', rx0 + 26, 26, 32, '人'); num(Math.floor(s.res), rx0 + 48, 36, 25, { col: resK >= 1 ? GOLD : CREAM });
+  icon(c, 'coin', rx0 + 158, 26, 30, '$'); num(s.coin ?? 0, rx0 + 178, 35, 22);
+  icon(c, 'ko2', rx0 + 268, 26, 30, 'KO'); num(s.kills, rx0 + 288, 35, 22);
   // 倍速、暫停：放在資源木牌右邊，不擋右上的入口（聲音收進暫停畫面）
-  for (const [i, k] of [[0, 'speed'], [1, 'pause']]) { const bx = 648 + i * 80, dn = VIEW.down === k ? 3 : 0; button(bx, 6, 74, 66, '', { down: VIEW.down === k, hot: k === 'pause' && G.paused });
-    if (k === 'speed') text(`×${G.speed}`, bx + 37, 50 + dn, { px: 28, align: 'center', col: INK, w: 900 }); else icon(c, 'pause', bx + 37, 39 + dn, 40, 'Ⅱ'); zone(bx - 2, 2, 78, 76, k); }
+  for (const [i, k] of [[0, 'speed'], [1, 'pause']]) { const bx = 8 + i * 92, byy = 504, dn = VIEW.down === k ? 3 : 0; button(bx, byy, 84, 78, '', { down: VIEW.down === k, hot: k === 'pause' && G.paused });      // 左下角：不擋上走廊的敵人
+    if (k === 'speed') text(`×${G.speed}`, bx + 42, byy + 52 + dn, { px: 30, align: 'center', col: INK, w: 900 }); else icon(c, 'pause', bx + 42, byy + 39 + dn, 44, 'Ⅱ'); zone(bx - 2, byy - 2, 88, 82, k); }
   // 頭目血條
   const boss = s.foes.find(f => f.boss);
-  if (boss) { const bx0 = 816; wood(bx0, 8, 300, 50); c.save(); c.beginPath(); c.rect(bx0 + 6, 12, 46, 42); c.clip(); foeMini(c, boss.kind, bx0 + 29, 70, 60); c.restore();
+  if (boss) { const bx0 = 648; wood(bx0, 4, 300, 50); c.save(); c.beginPath(); c.rect(bx0 + 6, 12, 46, 42); c.clip(); foeMini(c, boss.kind, bx0 + 29, 70, 60); c.restore();
     bar(bx0 + 58, 26, 196, 14, boss.hp / boss.max, '#c8554a'); if (boss.guard) icon(c, 'guard', bx0 + 276, 33, 36); else if (boss.charge > 0) icon(c, 'charge', bx0 + 276, 33, 36); else if (boss.broken) icon(c, 'dizzy', bx0 + 276, 33, 36, '!!'); }
   // 底部：緊急調派（報到中有人時蓋收件匣，指向報到中）
   const by = 490, pend = !!s.pending, can = C.canSummon(s), dn = VIEW.down === 'summon' ? 3 : 0;
