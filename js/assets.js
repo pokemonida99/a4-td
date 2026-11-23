@@ -4,7 +4,7 @@ export const IMG = {}, Q = {}, SND = {};
 let actx = null, bgmNode = null, bgmGain = null, bgmKey = '', master = null;
 export const PREF = { snd: 1, bgm: .55 };
 const QS = new URLSearchParams(location.search);
-export const STYLE = QS.get('style') || 'b', MAPSTYLE = QS.get('map') || (STYLE === 'b' ? 'paint' : 'pixel');      // 人物版本 a／b／c、地圖 paint／pixel（使用者挑定前可切換比較）
+export const STYLE = QS.get('style') || 'c', MAPSTYLE = QS.get('map') || (STYLE === 'b' ? 'paint' : 'pixel');      // 11/23 使用者選定 C 版（精緻像素 3 頭身）＋像素地圖；?style=a|b 還能看其他樣張
 
 const img = src => new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
 const json = src => fetch(src).then(r => r.ok ? r.json() : null).catch(() => null);
@@ -15,7 +15,8 @@ const DIRS = ['down', 'side', 'up'];
 
 // 一個角色的 Q 版表：{ cell, foot, frames, scale, strips: { 'idle_down': Image, ... } }
 async function loadQ(id) {
-  const dir = `art/q_${STYLE}`, meta = await json(`${dir}/${id}.json`); if (!meta) return null;
+  let dir = 'art/q', meta = QS.get('style') ? null : await json(`${dir}/${id}.json`);      // 正式圖（美術 session 做的）優先，沒有就用樣張
+  if (!meta) { dir = `art/q_${STYLE}`; meta = await json(`${dir}/${id}.json`); } if (!meta) return null;
   const strips = {};
   await Promise.all(Object.keys(meta.frames).flatMap(a => DIRS.map(async d => { const im = await img(`${dir}/${id}_${a}_${d}.png`); if (im) strips[`${a}_${d}`] = im; })));
   return { ...meta, strips };
@@ -36,6 +37,7 @@ export async function loadAll(onProg) {
     jobs.push(loadQ(`foe_${k}`).then(q => { if (q) Q[`foe_${k}`] = q; }));
   }
   jobs.push(img(`art/map/office_${MAPSTYLE}.jpg`).then(i => IMG.map = i));
+  jobs.push(img('art/chars/hui_ready.png').then(i => IMG.mouse = i));
   jobs.push(img('art/map/pad.png').then(i => IMG.pad = i));
   jobs.push(json('art/map/pad.json').then(j => IMG.padMeta = j));
   for (const k of ['clock', 'boss', 'battle', 'shop', 'rest', 'recruit']) jobs.push(img(`art/icons/${k}.png`).then(i => IMG[`ic_${k}`] = i));
@@ -44,7 +46,7 @@ export async function loadAll(onProg) {
 }
 
 // ---------- 聲音 ----------
-const SFX = ['card', 'confirm', 'cursor', 'coin', 'hit', 'hit_alt', 'slash', 'slash_alt', 'dark_blast', 'explosion', 'explosion_big', 'heal', 'holy_cast', 'boss_appear', 'boss_down', 'fanfare', 'defeat', 'break', 'buff', 'unite', 'cutin', 'stun', 'shield_up', 'whoosh', 'poison', 'train', 'encounter', 'weak'];
+const SFX = ['card', 'confirm', 'cursor', 'coin', 'hit', 'hit_alt', 'slash', 'slash_alt', 'dark_blast', 'explosion', 'explosion_big', 'heal', 'holy_cast', 'boss_appear', 'boss_down', 'fanfare', 'defeat', 'break', 'buff', 'unite', 'cutin', 'stun', 'shield_up', 'whoosh', 'poison', 'train', 'encounter', 'weak', 'wok_back', 'paper_storm', 'boss_charge', 'shield_block'];
 export async function startAudio() {
   if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
   actx = new (window.AudioContext || window.webkitAudioContext)(); master = actx.createGain(); master.connect(actx.destination);

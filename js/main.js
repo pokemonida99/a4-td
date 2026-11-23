@@ -25,6 +25,7 @@ let lastTouch = 0; document.addEventListener('touchend', e => { const n = Date.n
 
 // ---------- 開局 ----------
 function newRun() {
+  if (MAPJSON && C.setMap && !G.mapSet) { C.setMap('office', MAPJSON); G.mapSet = true; }
   G.s = C.newGame({ seed: (Date.now() & 0xffffff) }); G.sel = -1; G.drag = null; G.paused = false; resetView();
   G.scene = 'play'; bgm('battle'); say('intro');
 }
@@ -60,7 +61,7 @@ function tap(x, y) {
   if (i < 0) { G.sel = -1; return; }
   if (s.pending && !s.slots[i].tw && C.place) return act('place', i);
   if (s.pending && C.place && s.slots[i].tw) return act('place', i);      // 報到中的人點到同名同級＝直接合併（規則那邊判斷）
-  if (G.sel >= 0 && G.sel !== i) { act('drop', G.sel, i); G.sel = -1; return; }
+  if (G.sel >= 0 && G.sel !== i) { if (!act('drop', G.sel, i)) { sfx('cursor', .3); if (s.slots[i].tw) { G.sel = i; return; } } G.sel = -1; return; }
   if (G.sel === i) { G.sel = -1; return; }
   if (s.slots[i].tw) { G.sel = i; sfx('cursor', .5); }
 }
@@ -75,6 +76,7 @@ function hud(h) {
   if (h.startsWith('unite:') && C.useUnite) return act('unite', h.slice(6));
   if (h === 'super' && C.useSuper && G.sel >= 0) return act('super', G.sel);
   if (h === 'deselect') { G.sel = -1; return; }
+  if (h === 'call' && C.callWave) { if (C.callWave(s)) sfx('confirm', .7); return; }
 }
 function act(kind, a, b) {
   const s = G.s; let ok;
@@ -109,6 +111,7 @@ function frame(now) {
 
 // ---------- 開機 ----------
 const boot = document.getElementById('boot');
+let MAPJSON = null; fetch('art/map/office.json').then(r => r.ok ? r.json() : null).then(j => MAPJSON = j).catch(() => {});
 loadAll(k => boot.textContent = `載入中 ${Math.round(k * 100)}%`).then(() => {
   boot.remove(); G.scene = 'title'; requestAnimationFrame(frame);
   const q = new URLSearchParams(location.search); if (q.has('play')) newRun();
