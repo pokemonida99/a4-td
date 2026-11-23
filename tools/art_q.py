@@ -16,7 +16,7 @@ from PIL import Image
 from scipy import ndimage as ndi
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TARGET = {'default': 84, 'foe': 76, 'foe_chief': 100, 'foe_boss': 108,   # 正面待機身高（邏輯像素，含帽子）
-          'jie': 94}      # 巫師帽很高：含帽 94，身體才跟小葵一樣大
+          'jie': 94, 'foe_cart': 96, 'foe_mini': 44}      # 巫師帽很高：含帽 94，身體才跟小葵一樣大
 DIRS = ('down', 'side', 'up')
 ORDER = ('down', 'dside', 'side', 'uside', 'up')      # 輸出與檢查圖的排列順序
 

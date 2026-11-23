@@ -17,7 +17,8 @@ GPT 討論（格子表、比例、出招分解）：`gpt_q2.txt`（題目）、`
 ## 對照圖（給人看）
 - `<id>_sheet.png`（每人全部格子放大 3 倍）、`<id>_anim.gif`（小葵）
 - `team6_sheet.png`：預設隊伍六人五方向＋站在地圖工位上的實際大小；`team10_sheet.png`：其餘 10 位
-- 完成狀態（2026-11-23）：16 位同事（kui jie kevin yan zhe mi heilun cha qiang senpai wu you fairy xu an vivi）五方向、7 種敵人全部完成
+- 完成狀態（2026-11-23）：16 位同事（kui jie kevin yan zhe mi heilun cha qiang senpai wu you fairy xu an vivi）五方向、12 種敵人全部完成
+- `foes_sheet_3.png/.gif`：配合敵人屬性新增的 foe_ghost 掛名專員、foe_clerk 照章辦事員、foe_patcher 反覆補件員、foe_cart 群組轉寄車（身高 96）、foe_mini 小公文（身高 44）。這五個沒有 RPG 原圖，造型照 `design/btd6/DESIGN.md` 第三節的描述、畫風參考 `ref/foe_newstyle_ref.png`（用已完成的 Q 版敵人拼的）
 - `foes_sheet_1.png/.gif`（加班大隊、催稿信差、公文櫃重甲兵）、`foes_sheet_2.png/.gif`（實習生、大媽、課長、總經理）；GIF 右欄是在地圖走道上實際走過去
 - `check/<id>.png`：切圖檢查（紅點＝腳底）
 
@@ -43,6 +44,7 @@ GPT 討論（格子表、比例、出招分解）：`gpt_q2.txt`（題目）、`
 學到的：
 - 不寫頭身比，GPT 會畫成 4 頭身（小燕、阿哲第一版），要寫「big round head about one third of the total height」。
 - 斜前要寫「nose, chest and toes point to the lower right, far shoulder partly hidden」，不然會畫成幾乎正面。
+- 推車、盾這類大道具要寫「EVERY figure including the back view」（轉寄車第一版背面受擊推車不見）；用 `EXNOTE[id]` 加在 extra 提示詞後面
 - 單手持盾／武器的角色要寫明在哪隻手、各方向在畫面哪一邊（Kevin 斜後出手第一版盾換手）。
 - 手用「simple compact mitten-like pixel hands」，手指錯誤少很多；側面寫「never turning toward the viewer」避免回眸。
 

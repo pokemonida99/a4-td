@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw, ImageFont
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 name, ids = sys.argv[1], sys.argv[2:]
 F = ImageFont.truetype('fonts/NotoSansTC.ttf', 22)
-NAMES = {'foe_minion': '加班大隊', 'foe_courier': '催稿信差', 'foe_knight': '公文櫃重甲兵', 'foe_intern': '續命實習生', 'foe_auntie': '大媽同事', 'foe_chief': '甩鍋課長', 'foe_boss': '奧客總經理'}
+NAMES = {'foe_minion': '加班大隊', 'foe_courier': '催稿信差', 'foe_knight': '公文櫃重甲兵', 'foe_intern': '續命實習生', 'foe_auntie': '大媽同事', 'foe_chief': '甩鍋課長', 'foe_boss': '奧客總經理', 'foe_ghost': '掛名專員', 'foe_clerk': '照章辦事員', 'foe_patcher': '反覆補件員', 'foe_cart': '群組轉寄車', 'foe_mini': '小公文'}
 def strip(cid, anim, d):
     m = json.load(open(f'art/q/{cid}.json')); cw, ch = m['cell']; p = f'art/q/{cid}_{anim}_{d}.png'
     if not os.path.exists(p): return [], m
