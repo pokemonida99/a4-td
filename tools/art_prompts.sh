@@ -1,0 +1,6 @@
+# 共用提示詞片段（source 進來用）
+STYLE="Pixel art sprite sheet, same art style, proportions and character design as the reference image (refined chibi pixel art, about 3 heads tall, big head, clean dark outlines, HD-2D fantasy RPG). Do not add or change any clothing, hair or accessories."
+LAYOUT8="Layout: exactly 2 rows x 4 columns = 8 full-body figures of the same character, same scale, evenly spaced on a plain flat light gray background (#DDDDDD), no grid lines, no text, no ground shadows, figures and effects never touch the neighbouring figure. Read left to right, top row then bottom row = frames 1 to 8 of ONE attack animation. Frame 1 and frame 8 are the same calm ready stance. Feet of every figure on the same baseline in each row. Every hand has 5 fingers, exactly two arms, two legs."
+FRONT="All 8 frames: front view facing the viewer, seen from slightly above (top-down 3/4 RPG camera), attacking toward the viewer / toward the bottom of the screen."
+SIDE="All 8 frames: strict side view facing RIGHT (body, head and eyes all point to the right, profile; never look back at the viewer), attacking toward the right."
+BACK="All 8 frames: back view seen from behind (face not visible, we see the back of the head), attacking away from the viewer toward the top of the screen."

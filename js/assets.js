@@ -9,6 +9,7 @@ export const STYLE = QS.get('style') || 'c', MAPSTYLE = QS.get('map') || (STYLE 
 const img = src => new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
 const json = src => fetch(src).then(r => r.ok ? r.json() : null).catch(() => null);
 
+export const UI_ICONS = ['el_slash', 'el_blunt', 'el_fire', 'el_ice', 'el_holy', 'el_dark', 'res', 'coin', 'ko', 'life', 'wave', 'call', 'speed', 'pause', 'snd_on', 'snd_off', 'summon', 'inbox', 'dmg', 'aspd', 'range', 'refund', 'move', 'promote', 'mom', 'super', 'fatigue', 'shield', 'guard', 'charge'];
 export const HEROES = ['kui', 'jie', 'kevin', 'mi', 'yan', 'zhe', 'heilun', 'cha', 'qiang', 'senpai', 'you', 'xu', 'wu', 'fairy', 'an', 'vivi'];
 export const FOE_ART = { minion: 'minion', courier: 'courier', knight: 'knight', intern: 'intern', auntie: 'auntie', smoker: 'smoker', chief: 'chief', boss: 'boss', parrot: 'parrot', monkey: 'monkey', pig: 'pig', audit: 'audit' };
 const DIRS = ['down', 'side', 'up'];
@@ -41,6 +42,7 @@ export async function loadAll(onProg) {
   jobs.push(img('art/map/pad.png').then(i => IMG.pad = i));
   jobs.push(json('art/map/pad.json').then(j => IMG.padMeta = j));
   for (const k of ['clock', 'boss', 'battle', 'shop', 'rest', 'recruit']) jobs.push(img(`art/icons/${k}.png`).then(i => IMG[`ic_${k}`] = i));
+  for (const k of UI_ICONS) jobs.push(img(`art/ui/${k}.png`).then(i => { if (i) IMG[`ui_${k}`] = i; }));      // 介面圖示（tools/ui_icons.py 切的）
   let done = 0; const n = jobs.length;
   await Promise.all(jobs.map(p => p.then(() => onProg && onProg(++done / n))));
 }
