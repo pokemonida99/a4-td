@@ -368,6 +368,7 @@ export function drawHud(c, G, dt) {
   icon(c, 'coin', 298, by + 34 + dn, 24); text(`−${s.sumCost}`, 312, by + 42 + dn, { px: 20, col: (s.coin ?? 0) >= s.sumCost ? INK : RED, w: 900 });
   if (pend) { icon(c, 'inbox', 312, by + 70 + dn, 30); text('→', 334, by + 78 + dn, { px: 20, col: TEAL, w: 900 }); } zone(200, by, 160, 92, 'summon');
   // 新手指引：還沒放過人時，手指點紅電話；報到中有人時，手指點第一個空工位
+  if (s.wave > 0 && !pend && can && (s.coin ?? 0) >= s.sumCost * 2 && s.slots.some(q => !q.tw)) { const b = Math.abs(Math.sin(t * 5)) * 10; icon(c, 'finger', 244, by - 30 - b, 44); }      // 錢放著沒花：提醒繼續調派
   if (s.wave === 0 && s.phase === 'break') { const b = Math.abs(Math.sin(t * 5)) * 10; if (pend) { const e = s.slots.find(q => !q.tw); if (e) icon(c, 'finger', MX + e.x, MY + e.y - 90 - b, 44); } else if (!s.slots.some(q => q.tw)) icon(c, 'finger', 244, by - 30 - b, 48); }
   // 報到中
   wood(370, by, 108, 92); icon(c, 'inbox', 388, by + 18, 26);
