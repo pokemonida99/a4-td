@@ -51,7 +51,7 @@ export async function loadAll(onProg) {
 }
 
 // ---------- 聲音 ----------
-const SFX = ['card', 'confirm', 'cursor', 'coin', 'hit', 'hit_alt', 'slash', 'slash_alt', 'dark_blast', 'explosion', 'explosion_big', 'heal', 'holy_cast', 'boss_appear', 'boss_down', 'fanfare', 'defeat', 'break', 'buff', 'unite', 'cutin', 'stun', 'shield_up', 'whoosh', 'poison', 'train', 'encounter', 'weak', 'wok_back', 'paper_storm', 'boss_charge', 'shield_block', 'pop', 'stun'];
+const SFX = ['card', 'confirm', 'cursor', 'coin', 'hit', 'hit_alt', 'slash', 'slash_alt', 'dark_blast', 'explosion', 'explosion_big', 'heal', 'holy_cast', 'boss_appear', 'boss_down', 'fanfare', 'defeat', 'break', 'buff', 'unite', 'cutin', 'stun', 'shield_up', 'whoosh', 'poison', 'train', 'encounter', 'weak', 'wok_back', 'paper_storm', 'boss_charge', 'shield_block', 'pop'];
 const VARIANTS = ['slash', 'hit', 'explosion', 'break', 'holy_cast', 'dark_blast', 'pop', 'coin'];      // 密集的聲音有 _2、_3 變化版就隨機挑
 export async function startAudio() {
   if (actx) { if (actx.state === 'suspended') actx.resume(); return; }

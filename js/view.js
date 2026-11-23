@@ -57,7 +57,7 @@ export function fxFromEvents(s, G) {
       if (old) { old.v += e.v; old.t = Math.min(old.t, .08); if (tone) old.tone = tone; }
       else FX.push({ k: 'num', dmg: true, x0: e.x, y0: e.y, x: e.x + (Math.random() * 14 - 7), y: Math.max(84, e.y - 46), v: e.v, tone, t: 0, life: .75 }); }
     else if (e.k === 'die') { for (let i = 0; i < (e.boss ? 26 : 7); i++) FX.push({ k: 'paper', x: e.x, y: e.y - 20, vx: (Math.random() - .5) * 160, vy: -60 - Math.random() * 120, rot: Math.random() * 6, vr: (Math.random() - .5) * 12, t: 0, life: .9 + Math.random() * .4 }); if (e.boss) { sfx('boss_down', .8); VIEW.shake = .5; VIEW.bossKind = null; } else sfx('pop', .32); }
-    else if (e.k === 'leak') { VIEW.flash = .5; VIEW.shake = .25; sfx('defeat', .35, 1.4); say('leak'); if (s.lives <= s.livesMax * .3) say('low', true); }
+    else if (e.k === 'leak') { VIEW.flash = .5; VIEW.shake = .25; sfx('defeat', .35); say('leak'); if (s.lives <= s.livesMax * .3) say('low', true); }
     else if (e.k === 'summon') { FX.push({ k: 'pop', slot: e.slot, t: 0, life: .5 }); sfx('confirm', .5); }
     else if (e.k === 'pending') { VIEW.pendT = 0; }
     else if (e.k === 'coin') { if (FX.filter(q => q.k === 'coinfly').length < 14) FX.push({ k: 'coinfly', x0: e.x, y0: e.y - 30, v: e.v, t: 0, life: .7 }); }

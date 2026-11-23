@@ -1,0 +1,17 @@
+{
+ "map": {
+  "seconds": 68.571429,
+  "samples": 3024000,
+  "sr": 44100
+ },
+ "battle": {
+  "seconds": 90.0,
+  "samples": 3969000,
+  "sr": 44100
+ },
+ "boss": {
+  "seconds": 82.285714,
+  "samples": 3628800,
+  "sr": 44100
+ }
+}
