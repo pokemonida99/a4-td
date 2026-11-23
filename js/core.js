@@ -4,7 +4,7 @@
 // ===== API（main.js 用）=====
 //   newGame({ seed, team, map })   開局。team 預設 DEFAULT_TEAM（6 人）；map 預設 'office'
 //   step(s, dt=DT)                 推進一格（DT＝1/30 秒；倍速就多跑幾格）
-//   setMap(name, json)             換地圖（office.json：{ path, slots, gate, clock }，1096×442 座標）
+//   setMap(name, json)             換地圖（art/map/office.json：{ path, slots, gate, clock }；座標系跟著 json，現在是 1280×590）
 //   --- 玩家操作：成功回傳真值、失敗回傳 false／null，成功的都記進 s.log ---
 //   canSummon(s) / summon(s)       緊急調派：花 s.sumCost 人力，抽一位放進「報到中」s.pending={id,lv}
 //   canPlace(s, i) / place(s, i)   報到中 → 空工位；點到場上同名同級＝直接合併升級
@@ -18,6 +18,7 @@
 //   canSuper(s, i) / useSuper(s, i)               超級化：氣勢 100，指定一人 12 秒
 //   replay(opts, log, steps?)      用 newGame 的 opts 和 s.log 重演，回傳最後的 s
 //   lvK(lv)、rangeOf(tw)、posAt(lane, d)、dirOf(sl, x, y)
+//   規則重點：奧客總經理蓄力（f.charge>0）時，射程內同事自動集火他（足量傷害才打得斷）
 //
 // ===== 狀態（view 讀）=====
 //   s.state 'play'|'win'|'lose'　s.phase 'break'（波間，s.waveT 倒數）|'fight'（s.waveT=0）

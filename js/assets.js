@@ -9,7 +9,7 @@ export const STYLE = QS.get('style') || 'c', MAPSTYLE = QS.get('map') || (STYLE 
 const img = src => new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
 const json = src => fetch(src).then(r => r.ok ? r.json() : null).catch(() => null);
 
-export const UI_ICONS = ['el_slash', 'el_blunt', 'el_fire', 'el_ice', 'el_holy', 'el_dark', 'res', 'coin', 'ko', 'life', 'wave', 'call', 'speed', 'pause', 'snd_on', 'snd_off', 'summon', 'inbox', 'dmg', 'aspd', 'range', 'refund', 'move', 'promote', 'mom', 'super', 'fatigue', 'shield', 'guard', 'charge'];
+export const UI_ICONS = ['el_slash', 'el_blunt', 'el_fire', 'el_ice', 'el_holy', 'el_dark', 'res', 'coin', 'ko', 'life', 'wave', 'call', 'speed', 'pause', 'snd_on', 'snd_off', 'summon', 'inbox', 'dmg', 'aspd', 'range', 'refund', 'move', 'promote', 'mom', 'super', 'fatigue', 'shield', 'guard', 'charge', 'replay', 'home', 'ko2', 'call2', 'entrance', 'clock_ok', 'clock_ng', 'reticle', 'heart', 'finger', 'dizzy', 'revive'];
 export const HEROES = ['kui', 'jie', 'kevin', 'mi', 'yan', 'zhe', 'heilun', 'cha', 'qiang', 'senpai', 'you', 'xu', 'wu', 'fairy', 'an', 'vivi'];
 export const FOE_ART = { minion: 'minion', courier: 'courier', knight: 'knight', intern: 'intern', auntie: 'auntie', smoker: 'smoker', chief: 'chief', boss: 'boss', parrot: 'parrot', monkey: 'monkey', pig: 'pig', audit: 'audit' };
 const DIRS = ['down', 'dside', 'side', 'uside', 'up'];      // 8 方向：畫 5 個（斜前 dside、斜後 uside 都面向右），左邊翻轉

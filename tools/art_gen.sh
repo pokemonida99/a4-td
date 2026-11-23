@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Q 版素材生圖：tools/art_gen.sh <id> <sheet...>
-#   sheet：idle（3 方向待機 12 格）、atk_down、atk_side、atk_up、walk（敵人 3 方向走路）
+#   sheet：同事 idle（3 方向待機 12 格）、idle_diag（斜前／斜後待機 8 格）、atk_down|dside|side|uside|up；敵人 walk_down|side|up（8 格）、extra（站姿＋受擊三方向＋特殊姿勢）
 #   例：tools/art_gen.sh yan atk_down atk_side atk_up   （最多三張同時跑）
 # 參考圖：idle 用 design/art/ref/<id>_ref.png（畫風條＋RPG 原圖）；atk 用已生好的 design/art/raw/<id>_idle.png，畫風與造型才一致
 cd ${0:A:h}/..
@@ -48,24 +48,31 @@ DESC[foe_auntie]="Character: the gossip auntie coworker from the reference — c
 DESC[foe_chief]="Character: the blame-shifting section chief boss from the reference — balding middle-aged man with a thin combover, glasses, sly toothy grin, white shirt, dark brown vest, red tie, a stained apron, a huge black wok strapped on his back, a big metal spatula over his shoulder, brown shoes. Large and imposing but still chibi."
 DESC[foe_boss]="Character: the tyrant customer CEO final boss from the reference — huge fat man, slicked-back grey hair, smug grin, crimson suit with gold embroidery and gold buttons, gold tie, gold chains, black fur-collared cape with gold fringe, gold rings, a giant red gavel hammer over his shoulder, a long complaint scroll in the other hand. Large and imposing but still chibi."
 WALK8="Layout: exactly 2 rows x 4 columns = 8 full-body figures of the same character, same scale, evenly spaced on a plain flat light gray background (#DDDDDD), no grid lines, no text, no ground shadows, figures never touch. Read left to right, top row then bottom row = frames 1 to 8 of ONE looping walk cycle (1 contact right foot forward, 2 down, 3 passing, 4 up, 5 contact left foot forward, 6 down, 7 passing, 8 up). Feet on the same baseline in each row. Exactly two arms and two legs, simple compact mitten-like pixel hands."
-POSE2="Layout: exactly 2 full-body figures side by side, same scale, on a plain flat light gray background (#DDDDDD), no grid lines, no text, no ground shadows, not touching. Left figure: plain standing pose, front view facing the viewer, seen from slightly above. Right figure (same scale, same camera, front view):"
+EXTRA="Layout: exactly ONE row of full-body figures of the same character, same scale, same camera (seen from slightly above), evenly spaced left to right on a plain flat light gray background (#DDDDDD), no grid lines, no text, no ground shadows, figures never touch. Figure 1: plain standing pose, front view facing the viewer. Figure 2: hit reaction, front view: flinching backward, eyes squeezed shut, a small white impact star near the chest (cartoon, no blood). Figure 3: the same hit reaction in strict side view facing RIGHT. Figure 4: the same hit reaction in back view (face not visible). Exactly two arms and two legs per figure, simple compact mitten-like pixel hands."
 typeset -A POSE
 POSE[foe_intern]="collapsed on the floor, lying face down exhausted with the bottle crate spilled beside him, eyes as swirls (knocked out but cute, not gory)."
 POSE[foe_chief]="holding the huge black wok up in front of himself with both hands like a shield, guarding, smug."
 POSE[foe_boss]="unrolling the long complaint scroll with both hands so it hangs down to the floor, charging up an angry rant, gavel tucked under his arm."
-WFRONT="All 6 frames: walking toward the viewer / toward the bottom of the screen, front view seen from slightly above (top-down 3/4 RPG camera)."
-WSIDE="All 6 frames: strict side view walking to the RIGHT (body, head and eyes all point right, profile, never looking at the viewer)."
-WBACK="All 6 frames: back view walking away from the viewer toward the top of the screen (face not visible)."
+WFRONT="All 8 frames: walking toward the viewer / toward the bottom of the screen, front view seen from slightly above (top-down 3/4 RPG camera)."
+WSIDE="All 8 frames: strict side view walking to the RIGHT (body, head and eyes all point right, profile, never looking at the viewer)."
+WBACK="All 8 frames: back view walking away from the viewer toward the top of the screen (face not visible)."
+need() { for i in {1..120}; do [ -s "$1" ] && return 0; sleep 5; done; echo "no ref $1"; return 1; }   # 參考圖還在生就等
 for sh in $@; do
+  if [[ $sh == atk_* || $sh == idle_diag ]]; then need design/art/raw/${id}_idle.png || continue; fi
+  if [[ $sh == atk_dside || $sh == atk_uside ]]; then need design/art/raw/${id}_idle_diag.png || continue; fi
+  if [[ $sh == walk_side || $sh == walk_up || $sh == extra ]]; then need design/art/raw/${id}_walk_down.png || continue; fi
   case $sh in
     idle)     $G design/art/raw/${id}_idle.png "$STYLE ${DESC[$id]} $(cat design/art/raw/idle_layout.txt)" design/art/ref/${id}_ref.png & ;;
     atk_down) $G design/art/raw/${id}_atk_down.png "$STYLE ${DESC[$id]} $LAYOUT8 $FRONT ${ACT[$id]} Simple compact mitten-like pixel hands." design/art/raw/${id}_idle.png & ;;
     atk_side) $G design/art/raw/${id}_atk_side.png "$STYLE ${DESC[$id]} $LAYOUT8 $SIDE ${ACT[$id]} Simple compact mitten-like pixel hands." design/art/raw/${id}_idle.png & ;;
     atk_up)   $G design/art/raw/${id}_atk_up.png "$STYLE ${DESC[$id]} $LAYOUT8 $BACK ${ACT[$id]} The weapon and effect stay visible beside the shoulder or above the head. Simple compact mitten-like pixel hands." design/art/raw/${id}_idle.png & ;;
+    idle_diag) $G design/art/raw/${id}_idle_diag.png "$STYLE ${DESC[$id]} $(cat design/art/raw/diag_layout.txt)" design/art/raw/${id}_idle.png & ;;
+    atk_dside) $G design/art/raw/${id}_atk_dside.png "$STYLE ${DESC[$id]} $LAYOUT8 $DSIDE ${ACT[$id]} Simple compact mitten-like pixel hands." design/art/raw/${id}_idle_diag.png & ;;
+    atk_uside) $G design/art/raw/${id}_atk_uside.png "$STYLE ${DESC[$id]} $LAYOUT8 $USIDE ${ACT[$id]} The weapon and effect stay visible beside the shoulder or above the head. Simple compact mitten-like pixel hands." design/art/raw/${id}_idle_diag.png & ;;
     walk_down) $G design/art/raw/${id}_walk_down.png "$STYLE ${DESC[$id]} $WALK8 $WFRONT" design/art/ref/${id}_ref.png & ;;
     walk_side) $G design/art/raw/${id}_walk_side.png "$STYLE ${DESC[$id]} $WALK8 $WSIDE" design/art/raw/${id}_walk_down.png & ;;
     walk_up)   $G design/art/raw/${id}_walk_up.png "$STYLE ${DESC[$id]} $WALK8 $WBACK" design/art/raw/${id}_walk_down.png & ;;
-    pose)      $G design/art/raw/${id}_pose.png "$STYLE ${DESC[$id]} $POSE2 ${POSE[$id]}" design/art/raw/${id}_walk_down.png & ;;
+    extra)     $G design/art/raw/${id}_extra.png "$STYLE ${DESC[$id]} $EXTRA ${POSE[$id]:+Figure 5 (front view): ${POSE[$id]}} ${POSE[$id]:-There are exactly 4 figures.}" design/art/raw/${id}_walk_down.png & ;;
   esac
 done
 wait

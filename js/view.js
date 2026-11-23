@@ -21,7 +21,7 @@ const LINES = {
   wave: ['又來一批，別讓他們碰到打卡機。', '下一波。動作快一點。', '我看著呢，別讓我失望。', '人力夠了就「緊急調派」，別省。'],
   boss_chief: ['甩鍋課長來了。等他把鍋丟出去再打。'], boss_boss: ['總經理親自來了……全力擋下，這是命令。'], boss: ['主管級的來了，集中火力。'],
   leak: ['有工作漏進來了！', '打卡機那邊在叫了，注意！'], merge: ['職級核定，通過。', '升職了？那就拿出升職的樣子。'],
-  low: ['底氣快見底了，給我撐住。'], charge: ['總經理在攤客訴長卷！快打斷他！'], win: ['……做得不錯。今天准你們準時下班。'], lose: ['全員留下加班。明天早會檢討。'],
+  low: ['底氣快見底了，給我撐住。'], complain: ['客訴成立了……底氣被扣了。下次一定要打斷他！'], charge: ['總經理在攤客訴長卷！快打斷他！'], win: ['……做得不錯。今天准你們準時下班。'], lose: ['全員留下加班。明天早會檢討。'],
 };
 let talkCd = 0;
 export function say(k, force) {
@@ -50,7 +50,11 @@ export function fxFromEvents(s, G) {
       FX.push({ k: 'shot', elem: e.elem, kind: e.kind, x0: sl.x, y0: sl.y - 30, x: e.x, y: e.y - 18, r: e.radius || 0, t: 0, life: e.kind === 'splash' ? .45 : .3, x2: e.x2, y2: e.y2 });
       const snd = { slash: 'slash', blunt: 'hit', fire: 'explosion', ice: 'break', holy: 'holy_cast', dark: 'dark_blast' }[e.elem] || 'hit';
       sfx(snd, e.elem === 'fire' ? .18 : .26, .95 + Math.random() * .15);
-    } else if (e.k === 'dmg') { const near = FX.filter(q => q.k === 'num' && q.t < .25 && Math.abs(q.x - e.x) < 26 && Math.abs((q.y0 ?? -999) - e.y) < 20).length; FX.push({ k: 'num', x: e.x + (Math.random() * 20 - 10), y: e.y - 44 - near * 14, y0: e.y, v: e.v, weak: e.weak, t: 0, life: .7 }); }
+    } else if (e.k === 'dmg') {
+      const f = s.foes.find(q => Math.abs(q.x - e.x) < 3 && Math.abs(q.y - e.y) < 3), tone = f && f.guard ? 'guard' : f && f.broken ? 'broken' : e.weak ? 'weak' : '';
+      const old = FX.find(q => q.k === 'num' && q.dmg && q.t < .3 && Math.abs(q.x0 - e.x) < 24 && Math.abs(q.y0 - e.y) < 18);      // 同一隻 0.3 秒內合併成一個數字
+      if (old) { old.v += e.v; old.t = Math.min(old.t, .08); if (tone) old.tone = tone; }
+      else FX.push({ k: 'num', dmg: true, x0: e.x, y0: e.y, x: e.x + (Math.random() * 14 - 7), y: Math.max(84, e.y - 46), v: e.v, tone, t: 0, life: .75 }); }
     else if (e.k === 'die') { for (let i = 0; i < (e.boss ? 26 : 7); i++) FX.push({ k: 'paper', x: e.x, y: e.y - 20, vx: (Math.random() - .5) * 160, vy: -60 - Math.random() * 120, rot: Math.random() * 6, vr: (Math.random() - .5) * 12, t: 0, life: .9 + Math.random() * .4 }); if (e.boss) { sfx('boss_down', .8); VIEW.shake = .5; VIEW.bossKind = null; } else sfx('coin', .25, 1.2); }
     else if (e.k === 'leak') { VIEW.flash = .5; VIEW.shake = .25; sfx('defeat', .35, 1.4); say('leak'); if (s.lives <= s.livesMax * .3) say('low', true); }
     else if (e.k === 'summon') { FX.push({ k: 'pop', slot: e.slot, t: 0, life: .5 }); sfx('confirm', .5); }
@@ -68,7 +72,7 @@ export function fxFromEvents(s, G) {
     else if (e.k === 'broken') { sfx('break', .8); FX.push({ k: 'ico', x: (s.foes.find(f => f.uid === e.uid) || {}).x || 640, y: ((s.foes.find(f => f.uid === e.uid) || {}).y || 300) - 100, v: '!!', ic: 'guard', col: '#ff9a8a', t: 0, life: 1.2, big: true, k2: 'ico' }); }
     else if (e.k === 'charge') { sfx('boss_charge', .7); say('charge'); }
     else if (e.k === 'interrupt') { sfx('break', .9); FX.push({ k: 'ico', x: (s.foes.find(f => f.uid === e.uid) || {}).x || 640, y: ((s.foes.find(f => f.uid === e.uid) || {}).y || 300) - 110, v: '✕', ic: 'charge', col: GOLD, t: 0, life: 1.2, big: true, k2: 'ico' }); }
-    else if (e.k === 'complain') { VIEW.flash = .6; VIEW.shake = .4; sfx('paper_storm', .8); say('leak', true); }
+    else if (e.k === 'complain') { const f = s.foes.find(q => q.uid === e.uid) || { x: 640, y: 300 }; FX.push({ k: 'fly', ic: 'charge', x0: f.x, y0: f.y - 80, x1: 32, y1: 62, v: `−${e.v}`, t: 0, life: 1.1 }); VIEW.shake = .4; sfx('paper_storm', .8); say('complain', true); setTimeout(() => { VIEW.flash = .6; VIEW.heartT = .8; }, 650); }
     else if (e.k === 'down') FX.push({ k: 'ico', ic: 'ko', x: e.x, y: e.y - 50, t: 0, life: .8 });
     else if (e.k === 'revive') { FX.push({ k: 'ico', ic: 'life', x: e.x, y: e.y - 50, t: 0, life: .9 }); }
     else if (e.k === 'merge') { FX.push({ k: 'merge', slot: e.slot, lv: e.lv, t: 0, life: 1.1 }); sfx('train', .7); say('merge'); }
@@ -123,8 +127,15 @@ function drawFoe(c, f, x, y, t) {
   if (f.hitT > 0) { c.globalAlpha = f.hitT / .15 * .5; c.fillStyle = '#fff'; c.fillRect(x - 12, y - h * .8, 24, h * .6); c.globalAlpha = 1; }
   if (f.slow > 0) { c.fillStyle = 'rgba(127,212,240,.85)'; c.fillRect(x - 13, y - 3, 4, 4); c.fillRect(x + 9, y - 5, 4, 4); }
   if (f.burnT > 0 && Math.floor(t * 10) % 2) { c.fillStyle = '#ff7a2e'; c.fillRect(x - 4 + Math.sin(t * 9) * 6, y - h * .6, 4, 6); }
-  if (f.down > 0) { text('倒地', x, y - 20, { px: 12, align: 'center', col: '#d9c7a0', stroke: '#1a0f08', sw: 3 }); }
-  if (f.boss) { if (f.guard) icon(c, 'guard', x, y - h - 16, 34); else if (f.broken) { for (let j = 0; j < 3; j++) { const a = t * 5 + j * 2.1; text('★', x + Math.cos(a) * 18, y - h - 8 + Math.sin(a) * 5, { px: 14, col: GOLD, stroke: '#1a0f08', sw: 3, align: 'center' }); } } if (f.charge > 0) { icon(c, 'charge', x - 48, y - h - 30, 26); bar(x - 32, y - h - 34, 72, 8, f.charge, '#ff7a2e'); } }
+  if (f.down > 0) { c.save(); c.translate(x, y - 34); c.rotate(t * 4); icon(c, 'revive', 0, 0, 26, '↻'); c.restore(); }
+  if (f.boss) {
+    const oy = Math.max(84, y - h - 18); if (f.guard) { icon(c, 'guard', x, oy, 40); c.strokeStyle = `rgba(207,232,255,${.35 + .2 * Math.sin(t * 8)})`; c.lineWidth = 3; c.beginPath(); c.ellipse(x, y - h * .45, h * .45, h * .6, 0, 0, 7); c.stroke(); }
+    else if (f.broken) { if (!icon(c, 'dizzy', x, oy + 6, 40)) for (let j = 0; j < 3; j++) { const a = t * 5 + j * 2.1; text('★', x + Math.cos(a) * 18, y - h - 8 + Math.sin(a) * 5, { px: 14, col: GOLD, stroke: '#1a0f08', sw: 3, align: 'center' }); } }
+    if (f.charge > 0) {      // 客訴長卷蓄力：橘條＝蓄力時間；金條＝已經打的傷害，到刻度就打斷
+      const need = f.max * (F()[f.kind]?.scroll?.breakK || .06), bw = 96, bx = x - bw / 2, by = y - h - 44 < 70 ? y + 14 : y - h - 44;      // 太上面會被介面蓋住，改畫在腳下
+      icon(c, 'charge', bx - 18, by + 6, 30); bar(bx, by, bw, 8, f.charge, '#ff7a2e'); bar(bx, by + 12, bw, 8, Math.min(1, (f.chargeDmg || 0) / need), GOLD);
+      c.save(); c.translate(x, y - h * .45); c.rotate(t * 2); if (!icon(c, 'reticle', 0, 0, h * 1.1)) { c.strokeStyle = '#ff5a4a'; c.lineWidth = 3; c.beginPath(); c.arc(0, 0, h * .5, 0, 7); c.stroke(); } c.restore(); }
+  }
   if (!f.boss && f.hp < f.max) { const bw = 30; bar(x - bw / 2, y - h - 8, bw, 4, f.hp / f.max, '#d24a3a'); }
   const wk = F()[f.kind]?.weak; if (wk && wk[0] && !f.boss) icon(c, ELK[wk[0]], x + 20, y - h - 6, 20, (ELEM[wk[0]] || [''])[0]);
 }
@@ -148,7 +159,7 @@ function drawMap(c, s) {
 }
 function tag(c, x, y, s, col) { font(15, 900); const w = c.measureText(s).width + 14; c.fillStyle = '#1a0f08'; c.fillRect(x - w / 2 - 2, y - 13, w + 4, 24); c.fillStyle = col; c.fillRect(x - w / 2, y - 11, w, 20); text(s, x, y + 4, { px: 15, align: 'center', col: CREAM, w: 900 }); }
 function drawPad(c, x, y, o = {}) {
-  if (IMG.map) { if (o.ring) { c.strokeStyle = o.ring; c.lineWidth = 3; c.setLineDash(o.dash ? [6, 5] : []); c.strokeRect(x - 34, y - 32, 68, 62); c.setLineDash([]); } return; }      // 新地圖已經畫好工位，只畫選取框
+  if (IMG.map) { if (o.ring) { c.strokeStyle = o.ring; c.lineWidth = o.wide ? 5 : 3; c.setLineDash(o.dash ? [6, 5] : []); c.strokeRect(x - 34, y - 32, 68, 62); c.setLineDash([]); if (o.wide) { c.fillStyle = 'rgba(242,201,76,.18)'; c.fillRect(x - 34, y - 32, 68, 62); } } return; }      // 新地圖已經畫好工位，只畫選取框
   if (IMG.pad) { const m = IMG.padMeta || { foot: [IMG.pad.width / 2, IMG.pad.height / 2] }, k = m.scale || 1; c.drawImage(IMG.pad, Math.round(x - m.foot[0] * k), Math.round(y - m.foot[1] * k), IMG.pad.width * k, IMG.pad.height * k); }
   else { c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(x - 31, y - 9, 66, 22); c.fillStyle = pats().WOOD; c.fillRect(x - 33, y - 13, 66, 22); c.fillStyle = 'rgba(230,220,194,.85)'; c.fillRect(x - 27, y - 9, 54, 12); c.strokeStyle = '#24130b'; c.lineWidth = 2; c.strokeRect(x - 33, y - 13, 66, 22); stud(x - 28, y + 4); stud(x + 28, y + 4); }
   if (o.ring) { c.strokeStyle = o.ring; c.lineWidth = 3; c.setLineDash(o.dash ? [6, 5] : []); c.strokeRect(x - 37, y - 17, 74, 30); c.setLineDash([]); }
@@ -166,14 +177,19 @@ export function drawWorld(c, G, dt) {
   if (sel && sel.tw) { const Dt = T()[sel.tw.id], rr = C.rangeOf ? C.rangeOf(sel.tw) : Dt.range; if (Dt && rr) { c.fillStyle = 'rgba(242,201,76,.1)'; c.strokeStyle = 'rgba(242,201,76,.6)'; c.lineWidth = 2; c.beginPath(); c.ellipse(MX + sel.x, MY + sel.y, rr, rr / 1.25, 0, 0, 7); c.fill(); c.stroke(); } }
   // 工位
   const pulse = .5 + .5 * Math.sin(t * 6);
+  VIEW.mergeT = [];
   s.slots.forEach((sl, i) => {
-    let ring = null, dash = false;
-    if (G.sel === i) ring = GOLD;
-    else if (G.sel >= 0 && C.canMerge(s, G.sel, i)) ring = `rgba(242,201,76,${.4 + .6 * pulse})`;
+    let ring = null, dash = false, wide = false;
+    const canM = (G.sel >= 0 && C.canMerge(s, G.sel, i)) || (s.pending && sl.tw && sl.tw.id === s.pending.id && sl.tw.lv === (s.pending.lv || 1) && sl.tw.lv < (D.RULE?.maxLv || 3));
+    if (G.sel === i) { ring = GOLD; wide = true; }
+    else if (canM) { ring = `rgba(120,230,200,${.45 + .55 * pulse})`; VIEW.mergeT.push(sl); }
     else if ((G.sel >= 0 || s.pending) && !sl.tw) { ring = 'rgba(159,214,196,.7)'; dash = true; }
-    else if (s.pending && sl.tw && sl.tw.id === s.pending.id && sl.tw.lv === (s.pending.lv || 1)) ring = `rgba(242,201,76,${.4 + .6 * pulse})`;
-    drawPad(c, MX + sl.x, MY + sl.y, { ring, dash });
+    drawPad(c, MX + sl.x, MY + sl.y, { ring, dash, wide });
   });
+  // 入口：電梯門＋往下的箭頭（波間脈動）
+  const gt = s.map.gate; if (gt) { const b = s.phase === 'break' ? Math.abs(Math.sin(t * 4)) * 6 : 0; icon(c, 'entrance', MX + gt[0], MY + gt[1] + 52 + b, 40); }
+  // 新手第一波：沿走道跑方向箭頭
+  if (s.wave === 0 && s.phase === 'break') { const L = s.lanes[0]; for (let d = (t * 120) % 90; d < L.L; d += 90) { const p = C.posAt(L, d), q = C.posAt(L, d + 6), a = Math.atan2(q.y - p.y, q.x - p.x); c.save(); c.translate(MX + p.x, MY + p.y); c.rotate(a); c.fillStyle = 'rgba(255,246,200,.75)'; c.beginPath(); c.moveTo(10, 0); c.lineTo(-6, -9); c.lineTo(-2, 0); c.lineTo(-6, 9); c.fill(); c.restore(); } }
   // 同事＋敵人依 y 排序
   const ents = [];
   s.slots.forEach((sl, i) => { if (sl.tw && !(G.drag && G.drag.from === i)) ents.push({ y: sl.y, f: () => drawTower(c, s, sl, t, dt) }); });
@@ -181,6 +197,7 @@ export function drawWorld(c, G, dt) {
   for (const m of s.mice || []) ents.push({ y: m.y, f: () => { const im = IMG.mouse; c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(MX + m.x, MY + m.y, 9, 3, 0, 0, 7); c.fill(); if (im) { const k = 26 / im.height; c.drawImage(im, MX + m.x - im.width * k / 2, MY + m.y - 26 - Math.abs(Math.sin(t * 20 + m.uid)) * 3, im.width * k, 26); } else { c.fillStyle = '#8a8580'; c.fillRect(MX + m.x - 7, MY + m.y - 9, 14, 9); } } });
   for (const q of s.cones || []) ents.push({ y: q.y, f: () => { const x = MX + q.x, y = MY + q.y; c.fillStyle = '#1a0f08'; c.beginPath(); c.moveTo(x, y - 20); c.lineTo(x - 10, y + 2); c.lineTo(x + 10, y + 2); c.closePath(); c.fill(); c.fillStyle = '#ff8a2e'; c.beginPath(); c.moveTo(x, y - 18); c.lineTo(x - 8, y); c.lineTo(x + 8, y); c.closePath(); c.fill(); c.fillStyle = '#fff'; c.fillRect(x - 5, y - 9, 10, 3); } });
   ents.sort((a, b) => a.y - b.y).forEach(e => e.f());
+  for (const sl of VIEW.mergeT || []) icon(c, 'promote', MX + sl.x, MY + sl.y - 104 - Math.abs(Math.sin(t * 5)) * 6, 34, '↑');
   // 特效
   drawFx(c, dt);
   if (VIEW.flash > 0) { VIEW.flash -= dt; c.fillStyle = `rgba(178,58,48,${VIEW.flash * .5})`; c.fillRect(MX, MY, MW, MH); }
@@ -197,12 +214,18 @@ function drawTower(c, s, sl, t, dt) {
   c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(x, y, 16, 5, 0, 0, 7); c.fill();
   if (tw.super > 0) { c.fillStyle = `rgba(255,214,90,${.25 + .15 * Math.sin(t * 12)})`; c.beginPath(); c.ellipse(x, y - 28, 26, 38, 0, 0, 7); c.fill(); }
   drawHero(c, tw.id, x, y, { v, t: t + tw.uid * .37 });
-  // 職級牌
-  if (tw.lv > 1 || true) { const s2 = ROMAN[tw.lv]; font(13, 900, SERIF); const w = Math.max(18, c.measureText(s2).width + 8); c.fillStyle = '#3a240e'; c.fillRect(x - w / 2 - 1, y + 4, w + 2, 15); c.fillStyle = tw.lv >= 3 ? GOLD : tw.lv === 2 ? '#d9c7a0' : '#a88a5a'; c.fillRect(x - w / 2, y + 5, w, 13); text(s2, x, y + 16, { px: 13, align: 'center', col: '#2b1f18', fam: SERIF, w: 900 }); }
+  rankGems(c, x, y + 20, tw.lv);      // 職級：工位前緣的菱形（◆◇◇）
+  if (tw.super > 0) { c.strokeStyle = GOLD; c.lineWidth = 4; c.beginPath(); c.arc(x, y - 96, 13, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, tw.super / (D.RULE?.superT || 12))); c.stroke(); icon(c, 'super', x, y - 96, 20); }
+  if (VIEW.pickSuper) { const b = .5 + .5 * Math.sin(t * 8); icon(c, 'super', x, y - 100 - b * 4, 30); }
   if (tw.shield) { const sx = x + 20, sy = y - 66; c.fillStyle = '#1a0f08'; c.fillRect(sx - 6, sy - 7, 12, 13); c.fillStyle = '#cfe8ff'; c.fillRect(sx - 5, sy - 6, 10, 8); c.fillRect(sx - 3, sy + 2, 6, 3); c.fillStyle = '#7fb4e0'; c.fillRect(sx - 1, sy - 5, 2, 8); }      // 專注護盾：頭旁小盾牌
   if (tw.star > 0) text('★', x - 22, y - 62, { px: 16, col: GOLD, stroke: '#1a0f08', sw: 3 });
   if (tw.haste > 0) { c.fillStyle = '#9be0c8'; c.fillRect(x - 26, y - 50, 4, 4); c.fillRect(x - 22, y - 56, 4, 4); }
-  if (tw.fatigue > 0) for (let k = 0; k < tw.fatigue; k++) { c.fillStyle = '#6b5b9a'; c.fillRect(x + 14 + k * 6, y - 62, 4, 8); }
+  if (tw.fatigue > 0) { icon(c, 'fatigue', x - 24, y - 70, 26, 'z'); if (tw.fatigue > 1) text(String(tw.fatigue), x - 12, y - 58, { px: 15, col: '#d8c8ff', stroke: '#1a0f08', sw: 3, w: 900 }); }
+}
+function rankGems(c, x, y, lv) {
+  const n = D.RULE?.maxLv || 3, sz = 8, gap = 19, x0 = x - (n - 1) * gap / 2; c.fillStyle = 'rgba(20,12,6,.75)'; c.fillRect(x0 - 13, y - 11, (n - 1) * gap + 26, 22);
+  for (let l = 1; l <= n; l++) { const cx = x0 + (l - 1) * gap; c.fillStyle = '#1a0f08'; c.beginPath(); c.moveTo(cx, y - sz - 2); c.lineTo(cx + sz + 2, y); c.lineTo(cx, y + sz + 2); c.lineTo(cx - sz - 2, y); c.fill();
+    c.fillStyle = l <= lv ? (lv >= 3 ? '#ffd860' : GOLD) : '#5a4a3a'; c.beginPath(); c.moveTo(cx, y - sz); c.lineTo(cx + sz, y); c.lineTo(cx, y + sz); c.lineTo(cx - sz, y); c.fill(); if (l <= lv) { c.fillStyle = '#fff6c8'; c.fillRect(cx - 2, y - 5, 3, 3); } }
 }
 function drawFx(c, dt) {
   for (let i = FX.length - 1; i >= 0; i--) {
@@ -216,7 +239,8 @@ function drawFx(c, dt) {
       if (fly >= 1 && (e.r || e.elem === 'blunt')) { const r = (e.r || 22) * Math.min(1, (k - .4) * 2.5 + .2); c.strokeStyle = col; c.globalAlpha = 1 - k; c.lineWidth = 3; c.beginPath(); c.ellipse(x1, y1 + 14, r, r / 1.25, 0, 0, 7); c.stroke(); c.globalAlpha = 1; }
     } else if (e.k === 'num') {
       const y = MY + e.y - k * 26; c.globalAlpha = k > .7 ? (1 - k) / .3 : 1;
-      text(String(e.v), MX + e.x, y, { px: e.big ? 26 : e.weak ? 19 : 15, align: 'center', col: e.col || (e.weak ? GOLD : '#fff4e0'), stroke: '#1a0f08', sw: 4, w: 900 }); c.globalAlpha = 1;
+      const px = e.big ? 26 : e.tone === 'weak' || e.tone === 'broken' ? 21 : e.tone === 'guard' ? 12 : 14, col = e.col || (e.tone === 'weak' || e.tone === 'broken' ? GOLD : e.tone === 'guard' ? '#9a9088' : '#fff4e0');
+      text(String(Math.round(e.v)), MX + e.x, Math.max(80, y), { px, align: 'center', col, stroke: '#1a0f08', sw: 4, w: 900 }); c.globalAlpha = 1;
     } else if (e.k === 'ring') {
       const r = 8 + k * 34; c.strokeStyle = e.col; c.globalAlpha = 1 - k; c.lineWidth = 3; c.beginPath(); c.ellipse(MX + e.x, MY + e.y, r, r * .7, 0, 0, 7); c.stroke(); c.globalAlpha = 1;
     } else if (e.k === 'unite') {
@@ -224,6 +248,9 @@ function drawFx(c, dt) {
       if (e.x2 != null) { const g = 30 * (1 - k) + 8; c.strokeStyle = '#ff7a2e'; c.lineWidth = g; c.beginPath(); c.moveTo(MX + e.x, MY + e.y); c.lineTo(MX + e.x2, MY + e.y2); c.stroke(); c.strokeStyle = '#fff4e0'; c.lineWidth = g / 3; c.stroke(); }
       else { const r = e.r * Math.min(1, k * 3); c.fillStyle = 'rgba(127,212,240,.25)'; c.beginPath(); c.ellipse(MX + e.x, MY + e.y, r, r / 1.25, 0, 0, 7); c.fill(); c.strokeStyle = '#b083f0'; c.lineWidth = 5; c.stroke(); }
       c.globalAlpha = 1;
+    } else if (e.k === 'fly') {      // 圖示從 (x0,y0) 飛到 (x1,y1)，到了跳數字
+      const q = Math.min(1, k / .6), ez = q * q * (3 - 2 * q), fx = e.x0 + (e.x1 - e.x0) * ez, fy = e.y0 + (e.y1 - e.y0) * ez - Math.sin(q * Math.PI) * 80;
+      if (k < .6) icon(c, e.ic, MX + fx, MY + fy, 40); else { c.globalAlpha = 1 - (k - .6) / .4; text(e.v, e.x1 + 30, e.y1 + 8 - (k - .6) * 30, { px: 26, col: '#ff6a5a', stroke: '#1a0f08', sw: 4, w: 900 }); c.globalAlpha = 1; }
     } else if (e.k === 'ico') {
       const y = MY + e.y - k * 24, s2 = e.big ? 44 : 30; c.globalAlpha = k > .7 ? (1 - k) / .3 : 1; const pop = k < .15 ? .6 + k / .15 * .4 : 1;
       icon(c, e.ic, MX + e.x - (e.v ? s2 * .4 : 0), y, s2 * pop); if (e.v) text(String(e.v), MX + e.x + s2 * .2, y + s2 * .25, { px: e.big ? 26 : 18, col: e.col || CREAM, stroke: '#1a0f08', sw: 4, w: 900 }); c.globalAlpha = 1;
@@ -256,19 +283,21 @@ function icon(c, k, x, y, s, fb) {
 const ELK = { slash: 'el_slash', blunt: 'el_blunt', fire: 'el_fire', ice: 'el_ice', holy: 'el_holy', dark: 'el_dark' };
 function head(c, id, x, y, s) {      // 立繪裁成圓形頭像
   const b = IMG['bust_' + id]; c.save(); c.beginPath(); c.arc(x, y, s / 2, 0, 7); c.clip(); c.fillStyle = '#3b2d4a'; c.fillRect(x - s / 2, y - s / 2, s, s);
-  if (b) { const k = s * 1.9 / b.width; c.drawImage(b, x - b.width * k / 2, y - s * .62, b.width * k, b.height * k); } c.restore();
+  if (b) { const side = b.width * .9; c.drawImage(b, (b.width - side) / 2, 0, side, side, x - s / 2, y - s / 2, s, s); } c.restore();      // 立繪最上面一個正方形＝整顆頭加肩膀（11/23 使用者：大頭貼要整個出來）
   c.strokeStyle = '#1a0f08'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, s / 2, 0, 7); c.stroke(); c.strokeStyle = BRASS; c.lineWidth = 1.5; c.beginPath(); c.arc(x, y, s / 2 - 2, 0, 7); c.stroke();
 }
 const num = (s, x, y, px, o = {}) => text(String(s), x, y, { px, col: o.col ?? CREAM, stroke: '#1a0f08', sw: 4, w: 900, align: o.align ?? 'left' });
 export function drawHud(c, G, dt) {
-  const s = G.s, t = G.t;
-  // 左上：波次＋下班底氣＋提早開波
+  const s = G.s, t = G.t; VIEW.pickSuper = G.pickSuper;
+  // 左上：波次＋下班底氣＋開下一波（手機上按鈕至少 64 邏輯像素高）
   wood(8, 6, 236, 76);
-  icon(c, 'wave', 32, 30, 34, '波'); num(Math.max(1, s.wave), 54, 42, 28, { col: GOLD }); text(`/${D.WAVES.length}`, 54 + c.measureText(String(Math.max(1, s.wave))).width + 2, 42, { px: 15, col: '#d9c7a0', w: 900 });
-  const low = s.lives <= s.livesMax * .3;
-  icon(c, 'life', 32, 62, 26, '♥'); bar(50, 56, 130, 12, s.lives / s.livesMax, low ? '#d24a3a' : '#c8554a'); num(s.lives, 190, 68, 17, { col: low ? '#ff8a7a' : CREAM });
+  icon(c, 'wave', 30, 28, 32, '波'); num(Math.max(1, s.wave), 50, 40, 26, { col: GOLD }); font(26, 900); text(`/${D.WAVES.length}`, 52 + c.measureText(String(Math.max(1, s.wave))).width, 40, { px: 14, col: '#d9c7a0', w: 900 });
+  const low = s.lives <= s.livesMax * .3, hb = VIEW.heartT > 0 ? (VIEW.heartT -= dt, 1 + Math.sin(VIEW.heartT * 30) * .15) : 1;
+  icon(c, 'heart', 30, 62, 26 * hb, '♥') || 0; bar(48, 56, 84, 12, s.lives / s.livesMax, low ? '#d24a3a' : '#c8554a'); num(s.lives, 138, 68, 17, { col: low ? '#ff8a7a' : CREAM });
   const brk = s.phase ? s.phase === 'break' : s.waveT > 0, next = brk && s.wave < D.WAVES.length ? Math.ceil(Math.max(0, s.waveT)) : 0;
-  if (next) { button(150, 12, 88, 40, '', { hot: true, down: VIEW.down === 'call' }); icon(c, 'call', 178, 32 + (VIEW.down === 'call' ? 3 : 0), 30, '▶▶'); num(next, 208, 40, 18, { col: INK }); zone(150, 8, 88, 48, 'call'); }
+  if (next) { const dn = VIEW.down === 'call' ? 3 : 0, cx = 204, cy = 44; button(166, 10, 76, 68, '', { hot: true, down: VIEW.down === 'call' });
+    const tot = s.wave === 0 ? (D.RULE?.firstDelay || 12) : (D.RULE?.breakT || 8); c.strokeStyle = GOLD; c.lineWidth = 4; c.beginPath(); c.arc(cx, cy + dn, 27, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, s.waveT / tot)); c.stroke();
+    icon(c, 'call2', cx, cy + dn, 36, '▶'); num(next, cx + 18, cy + 26 + dn, 15, { col: CREAM }); zone(160, 4, 88, 80, 'call'); }
   // 左邊：Vivi 視訊
   const vx = 8, vy = 90, vw = 176, vh = 196;
   c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(vx + 3, vy + 5, vw, vh); c.fillStyle = pats().WOOD_D; c.fillRect(vx, vy, vw, vh); c.strokeStyle = '#1a0f08'; c.lineWidth = 2; c.strokeRect(vx + 1, vy + 1, vw - 2, vh - 2);
@@ -278,33 +307,39 @@ export function drawHud(c, G, dt) {
   c.fillStyle = 'rgba(255,255,255,.05)'; for (let yy = vy + 24; yy < vy + 140; yy += 3) c.fillRect(vx + 6, yy, vw - 12, 1);
   c.fillStyle = pats().PAPER; c.fillRect(vx + 6, vy + 144, vw - 12, vh - 150);
   if (VIEW.talk) { VIEW.talk.t += dt; wrap(c, VIEW.talk.s.slice(0, Math.floor(VIEW.talk.t * 24)), vx + 12, vy + 162, vw - 24, 18, { px: 14 }); }
-  // 左邊：下一波敵人（頭像＋數量＋弱點）
+  // 左邊：下一波敵人（頭像＋數量＋弱點；頭目波放頭目頭像加紅框）
   const NW = D.WAVES[s.wave];
   if (NW) { const kinds = []; NW.groups.forEach(g => { const o = kinds.find(z => z.k === g.kind); o ? o.n += g.n : kinds.push({ k: g.kind, n: g.n }); });
-    const ky = 296, kh = 40 + Math.min(4, kinds.length) * 34; wood(8, ky, 176, kh);
-    icon(c, 'wave', 26, ky + 20, 24); num(s.wave + 1, 42, ky + 28, 18, { col: GOLD }); if (NW.boss) icon(c, 'charge', 160, ky + 20, 24);
-    kinds.slice(0, 4).forEach((o, j) => { const y = ky + 54 + j * 34, im = IMG['foe_' + o.k];
-      c.fillStyle = 'rgba(239,230,207,.12)'; c.fillRect(14, y - 15, 164, 30);
+    const ky = 296, kh = 40 + Math.min(4, kinds.length) * 34; wood(8, ky, 176, kh); if (NW.boss) { c.strokeStyle = RED; c.lineWidth = 3; c.strokeRect(10, ky + 2, 172, kh - 4); }
+    icon(c, 'wave', 26, ky + 20, 24); num(s.wave + 1, 42, ky + 28, 18, { col: GOLD });
+    kinds.slice(0, 4).forEach((o, j) => { const y = ky + 54 + j * 34, im = IMG['foe_' + o.k], bossK = F()[o.k]?.boss;
+      c.fillStyle = bossK ? 'rgba(178,58,48,.35)' : 'rgba(239,230,207,.12)'; c.fillRect(14, y - 15, 164, 30);
       if (im) { const k = 28 / im.height; c.save(); c.translate(34, y + 13); c.scale(-1, 1); c.drawImage(im, -im.width * k / 2, -28, im.width * k, 28); c.restore(); }
       num(`×${o.n}`, 58, y + 7, 18); const wk = F()[o.k]?.weak?.[0]; if (wk) icon(c, ELK[wk], 160, y, 26, (ELEM[wk] || [''])[0]); }); }
   // 上緣：資源木牌
-  const rx0 = 256; wood(rx0, 8, 380, 46);
+  const rx0 = 256; wood(rx0, 8, 380, 50);
   const resK = Math.min(1, s.res / Math.max(1, s.sumCost));
-  icon(c, 'res', rx0 + 26, 31, 34, '人'); num(Math.floor(s.res), rx0 + 48, 41, 25, { col: resK >= 1 ? GOLD : CREAM });
-  icon(c, 'coin', rx0 + 158, 31, 32, '$'); num(s.coin ?? 0, rx0 + 178, 41, 22);
-  icon(c, 'ko', rx0 + 268, 31, 32, 'KO'); num(s.kills, rx0 + 288, 41, 22);
+  icon(c, 'res', rx0 + 26, 33, 34, '人'); num(Math.floor(s.res), rx0 + 48, 43, 25, { col: resK >= 1 ? GOLD : CREAM });
+  icon(c, 'coin', rx0 + 158, 33, 32, '$'); num(s.coin ?? 0, rx0 + 178, 43, 22);
+  icon(c, 'ko2', rx0 + 268, 33, 32, 'KO'); num(s.kills, rx0 + 288, 43, 22);
+  // 倍速、暫停：放在資源木牌右邊，不擋右上的入口（聲音收進暫停畫面）
+  for (const [i, k] of [[0, 'speed'], [1, 'pause']]) { const bx = 648 + i * 80, dn = VIEW.down === k ? 3 : 0; button(bx, 6, 74, 66, '', { down: VIEW.down === k, hot: k === 'pause' && G.paused });
+    if (k === 'speed') text(`×${G.speed}`, bx + 37, 50 + dn, { px: 28, align: 'center', col: INK, w: 900 }); else icon(c, 'pause', bx + 37, 39 + dn, 40, 'Ⅱ'); zone(bx - 2, 2, 78, 76, k); }
+  // 頭目血條
   const boss = s.foes.find(f => f.boss);
-  if (boss) { const bx0 = 648; wood(bx0, 8, 330, 46); const im = IMG['foe_' + boss.kind]; if (im) { const k = 40 / im.height; c.save(); c.beginPath(); c.rect(bx0 + 6, 12, 44, 38); c.clip(); c.translate(bx0 + 28, 52); c.scale(-1, 1); c.drawImage(im, -im.width * k / 2, -40, im.width * k, 40); c.restore(); }
-    bar(bx0 + 58, 24, 230, 14, boss.hp / boss.max, '#c8554a'); if (boss.guard) icon(c, 'guard', bx0 + 308, 31, 34); else if (boss.charge > 0) icon(c, 'charge', bx0 + 308, 31, 34); else if (boss.broken) { stamp('!!', bx0 + 308, 31, { px: 16 }); } }
-  const bx = W - 258; for (const [i, k, ic, fb] of [[0, 'speed', 'speed', `×${G.speed}`], [1, 'pause', 'pause', 'Ⅱ'], [2, 'mute', G.mute ? 'snd_off' : 'snd_on', '♪']]) {
-    button(bx + i * 84, 8, 78, 46, '', { down: VIEW.down === k }); const dy = VIEW.down === k ? 3 : 0; icon(c, ic, bx + i * 84 + 39 - (k === 'speed' ? 16 : 0), 31 + dy, k === 'speed' ? 28 : 32, fb); if (k === 'speed') text(`×${G.speed}`, bx + 62, 39 + dy, { px: 17, align: 'center', col: INK, w: 900 }); zone(bx + i * 84, 4, 78, 54, k); }
-  // 底部：緊急調派
-  const by = 490, can = C.canSummon(s), dn = VIEW.down === 'summon' ? 3 : 0;
-  button(200, by, 160, 92, '', { hot: can, off: !can, down: VIEW.down === 'summon' }); icon(c, 'summon', 246, by + 44 + dn, 58, '召'); icon(c, 'res', 296, by + 46 + dn, 26); num(s.sumCost, 312, by + 55 + dn, 22, { col: can ? INK : '#8a7d66' }); zone(200, by, 160, 92, 'summon');
+  if (boss) { const bx0 = 816; wood(bx0, 8, 300, 50); const im = IMG['foe_' + boss.kind]; if (im) { const k = 42 / im.height; c.save(); c.beginPath(); c.rect(bx0 + 6, 12, 46, 42); c.clip(); c.translate(bx0 + 29, 56); c.scale(-1, 1); c.drawImage(im, -im.width * k / 2, -42, im.width * k, 42); c.restore(); }
+    bar(bx0 + 58, 26, 196, 14, boss.hp / boss.max, '#c8554a'); if (boss.guard) icon(c, 'guard', bx0 + 276, 33, 36); else if (boss.charge > 0) icon(c, 'charge', bx0 + 276, 33, 36); else if (boss.broken) icon(c, 'dizzy', bx0 + 276, 33, 36, '!!'); }
+  // 底部：緊急調派（報到中有人時蓋收件匣，指向報到中）
+  const by = 490, pend = !!s.pending, can = C.canSummon(s), dn = VIEW.down === 'summon' ? 3 : 0;
+  button(200, by, 160, 92, '', { hot: can, off: !can, down: VIEW.down === 'summon' }); c.globalAlpha = can ? 1 : .55; icon(c, 'summon', 244, by + 44 + dn, 58, '召'); c.globalAlpha = 1;
+  icon(c, 'res', 298, by + 34 + dn, 24); text(`−${s.sumCost}`, 312, by + 42 + dn, { px: 20, col: s.res >= s.sumCost ? INK : RED, w: 900 });
+  if (pend) { icon(c, 'inbox', 312, by + 70 + dn, 30); text('→', 334, by + 78 + dn, { px: 20, col: TEAL, w: 900 }); } zone(200, by, 160, 92, 'summon');
+  // 新手指引：還沒放過人時，手指點紅電話；報到中有人時，手指點第一個空工位
+  if (s.wave === 0 && s.phase === 'break') { const b = Math.abs(Math.sin(t * 5)) * 10; if (pend) { const e = s.slots.find(q => !q.tw); if (e) icon(c, 'finger', MX + e.x, MY + e.y - 90 - b, 44); } else if (!s.slots.some(q => q.tw)) icon(c, 'finger', 244, by - 30 - b, 48); }
   // 報到中
   wood(370, by, 108, 92); icon(c, 'inbox', 388, by + 18, 26);
-  if (s.pending) { c.save(); c.beginPath(); c.rect(374, by + 4, 100, 84); c.clip(); drawHero(c, s.pending.id, 428, by + 88, { t, sc: .9 }); c.restore();
-    if (C.discard) { button(374, by - 44, 100, 40, '', {}); icon(c, 'refund', 404, by - 24, 28); num(`+${D.RULE?.discardBack ?? 5}`, 422, by - 15, 17, { col: INK }); zone(374, by - 48, 100, 46, 'discard'); } }
+  if (pend) { c.save(); c.beginPath(); c.rect(374, by + 4, 100, 84); c.clip(); drawHero(c, s.pending.id, 428, by + 88, { t, sc: .9 }); c.restore();
+    if (C.discard) { button(374, by - 72, 100, 66, '', { down: VIEW.down === 'discard' }); icon(c, 'refund', 402, by - 39, 34); text(`+${D.RULE?.discardBack ?? 5}`, 422, by - 30, { px: 20, w: 900 }); zone(372, by - 76, 104, 72, 'discard'); } }
   // 選中同事
   const ix = 488, iw = 400; paper(ix, by, iw, 92, {});
   const sel = G.sel >= 0 && s.slots[G.sel] && s.slots[G.sel].tw;
@@ -312,29 +347,33 @@ export function drawHud(c, G, dt) {
     const Dt = T()[sel.id] || {};
     head(c, sel.id, ix + 42, by + 46, 64);
     text(Dt.name || sel.id, ix + 84, by + 30, { px: 20, fam: SERIF, w: 900 }); font(20, 900, SERIF); const nw = c.measureText(Dt.name || '').width;
-    icon(c, ELK[Dt.elem], ix + 98 + nw, by + 23, 26, (ELEM[Dt.elem] || [''])[0]);
-    for (let l = 1; l <= (D.RULE?.maxLv || 3); l++) { c.fillStyle = l <= sel.lv ? GOLD : 'rgba(43,31,24,.25)'; c.beginPath(); const sx = ix + 126 + nw + l * 16; c.moveTo(sx, by + 14); c.lineTo(sx + 6, by + 23); c.lineTo(sx, by + 32); c.lineTo(sx - 6, by + 23); c.fill(); }
+    icon(c, ELK[Dt.elem], ix + 98 + nw, by + 23, 26, (ELEM[Dt.elem] || [''])[0]); rankGems(c, ix + 152 + nw, by + 24, sel.lv);
     const rr = C.rangeOf ? C.rangeOf(sel) : Dt.range;
     if (Dt.dmg) { icon(c, 'dmg', ix + 96, by + 66, 26); text(String(Math.round(Dt.dmg * C.lvK(sel.lv))), ix + 112, by + 74, { px: 18, w: 900 });
-      icon(c, 'aspd', ix + 168, by + 66, 26); text(`${Dt.rate}s`, ix + 184, by + 74, { px: 18, w: 900 });
-      icon(c, 'range', ix + 240, by + 66, 26); text(String(Math.round(rr)), ix + 256, by + 74, { px: 18, w: 900 }); }
-    button(ix + iw - 86, by + 6, 78, 40, '', {}); icon(c, 'refund', ix + iw - 62, by + 26, 26); text(`+${(D.RULE?.sellBack || [5, 10, 20])[sel.lv - 1]}`, ix + iw - 46, by + 33, { px: 16, w: 900 }); zone(ix + iw - 86, by + 2, 78, 48, 'sell');
-    if (C.moveCost) { const mc = C.moveCost(s); icon(c, 'move', ix + iw - 62, by + 70, 26); if (mc) { icon(c, 'coin', ix + iw - 36, by + 70, 20); text(String(mc), ix + iw - 24, by + 77, { px: 15, col: mc > (s.coin || 0) ? RED : INK, w: 900 }); } else text('0', ix + iw - 40, by + 77, { px: 15, col: TEAL, w: 900 }); }
+      icon(c, 'aspd', ix + 166, by + 66, 26); text(`${Dt.rate}s`, ix + 182, by + 74, { px: 18, w: 900 });
+      icon(c, 'range', ix + 250, by + 66, 26); text(String(Math.round(rr)), ix + 266, by + 74, { px: 18, w: 900 }); }
+    if (C.moveCost) { const mc = C.moveCost(s), mx = ix + 258; icon(c, 'move', mx, by + 22, 24); if (mc) { icon(c, 'coin', mx + 22, by + 22, 18); text(String(mc), mx + 32, by + 29, { px: 15, col: mc > (s.coin || 0) ? RED : INK, w: 900 }); } else text('0', mx + 16, by + 29, { px: 16, col: TEAL, w: 900 }); }
+    button(ix + iw - 72, by + 8, 66, 76, '', { down: VIEW.down === 'sell' }); icon(c, 'refund', ix + iw - 39, by + 36, 36); text(`+${(D.RULE?.sellBack || [5, 10, 20])[sel.lv - 1]}`, ix + iw - 39, by + 74, { px: 17, align: 'center', w: 900 }); zone(ix + iw - 74, by + 4, 70, 84, 'sell');
   } else {      // 沒選人：圖解「同名同級拖在一起＝升級」
     const demo = s.slots.find(x => x.tw)?.tw.id || 'kui';
     head(c, demo, ix + 50, by + 46, 54); text('+', ix + 92, by + 56, { px: 30, w: 900, col: INK2 }); head(c, demo, ix + 134, by + 46, 54);
     text('=', ix + 172, by + 56, { px: 30, w: 900, col: INK2 }); icon(c, 'promote', ix + 220, by + 46, 54, '↑');
-    if (s.pending) { icon(c, 'inbox', ix + 300, by + 46, 36); text('→', ix + 326, by + 56, { px: 26, w: 900, col: INK2 }); c.strokeStyle = TEAL; c.lineWidth = 3; c.setLineDash([5, 4]); c.strokeRect(ix + 354, by + 28, 34, 36); c.setLineDash([]); }
+    if (pend) { icon(c, 'inbox', ix + 300, by + 46, 36); text('→', ix + 326, by + 56, { px: 26, w: 900, col: INK2 }); c.strokeStyle = TEAL; c.lineWidth = 3; c.setLineDash([5, 4]); c.strokeRect(ix + 354, by + 28, 34, 36); c.setLineDash([]); }
   }
-  // 氣勢與主動技
+  // 氣勢與主動技（按鈕 64 高；合體技缺誰就把誰變灰；氣勢不夠顯示要多少）
   const rx = 898, rw = W - rx - 8; wood(rx, by, rw, 92);
-  icon(c, 'mom', rx + 22, by + 20, 28); bar(rx + 42, by + 14, rw - 56, 12, (s.momentum || 0) / 100, GOLD, { ticks: [.6] });
-  const UN = s.unites || D.UNITES || [], bw = (rw - 30) / 3;
-  UN.slice(0, 2).forEach((u, j) => { const ok = C.canUnite ? !!C.canUnite(s, u.key) : (s.momentum >= (u.cost || 60)), cd = (s.cds || {})[u.key] || 0, bx1 = rx + 8 + j * (bw + 6);
-    button(bx1, by + 34, bw, 52, '', { off: !ok, hot: ok, down: VIEW.down === 'unite:' + u.key }); c.globalAlpha = ok ? 1 : .5; head(c, u.who[0], bx1 + bw / 2 - 16, by + 58, 34); head(c, u.who[1], bx1 + bw / 2 + 16, by + 58, 34); c.globalAlpha = 1;
-    if (cd > 0) num(Math.ceil(cd), bx1 + bw / 2, by + 66, 20, { align: 'center' }); zone(bx1, by + 34, bw, 52, 'unite:' + u.key); });
-  if (C.useSuper) { const ok = G.sel >= 0 && (C.canSuper ? !!C.canSuper(s, G.sel) : (s.momentum || 0) >= 100), bx2 = rx + rw - bw - 8; button(bx2, by + 34, bw, 52, '', { off: !ok, hot: ok, down: VIEW.down === 'super' }); c.globalAlpha = ok ? 1 : .5; icon(c, 'super', bx2 + bw / 2, by + 60, 40, '★'); c.globalAlpha = 1; zone(bx2, by + 34, bw, 52, 'super'); }
-  if (G.paused) { c.fillStyle = 'rgba(20,13,8,.55)'; c.fillRect(0, 60, W, 425); icon(c, 'pause', W / 2, 400, 80, 'Ⅱ'); }
+  icon(c, 'mom', rx + 18, by + 12, 22); bar(rx + 34, by + 7, rw - 46, 10, (s.momentum || 0) / 100, GOLD, { ticks: [.6] });
+  const UN = s.unites || D.UNITES || [], bw = (rw - 28) / 3, onField = id => s.slots.some(q => q.tw && q.tw.id === id);
+  UN.slice(0, 2).forEach((u, j) => { const ok = C.canUnite ? !!C.canUnite(s, u.key) : (s.momentum >= (u.cost || 60)), cd = (s.cds || {})[u.key] || 0, bx1 = rx + 7 + j * (bw + 7);
+    button(bx1, by + 22, bw, 64, '', { off: !ok, hot: ok, down: VIEW.down === 'unite:' + u.key });
+    u.who.forEach((w, k) => { const here = onField(w); c.save(); if (!here) c.filter = 'grayscale(1) brightness(.6)'; c.globalAlpha = ok || here ? 1 : .6; head(c, w, bx1 + bw / 2 + (k ? 15 : -15), by + 50, 34); c.restore(); });
+    if (cd > 0) num(Math.ceil(cd), bx1 + bw / 2, by + 60, 22, { align: 'center' });
+    else if (!ok && u.who.every(onField) && (s.momentum || 0) < (u.cost || 60)) { icon(c, 'mom', bx1 + 16, by + 76, 16); text(String(u.cost || 60), bx1 + 26, by + 81, { px: 13, col: '#8a7d66', w: 900 }); }
+    zone(bx1, by + 20, bw, 70, 'unite:' + u.key); });
+  if (C.useSuper) { const full = (s.momentum || 0) >= (D.RULE?.superCost || 100), bx2 = rx + rw - bw - 7, on = G.pickSuper; button(bx2, by + 22, bw, 64, '', { off: !full, hot: full, down: VIEW.down === 'super' || on });
+    c.globalAlpha = full ? 1 : .5; icon(c, 'super', bx2 + bw / 2, by + 52, on ? 50 : 42, '★'); c.globalAlpha = 1; if (on) icon(c, 'finger', bx2 + bw / 2, by - 10 - Math.abs(Math.sin(t * 5)) * 8, 34); zone(bx2, by + 20, bw, 70, 'super'); }
+  // 暫停：地圖變暗，暫停鍵發亮；聲音開關在這裡
+  if (G.paused) { c.fillStyle = 'rgba(20,13,8,.55)'; c.fillRect(0, 84, W, 400); const dn = VIEW.down === 'mute' ? 3 : 0; button(W / 2 - 50, 250, 100, 84, '', { down: VIEW.down === 'mute' }); icon(c, G.mute ? 'snd_off' : 'snd_on', W / 2, 292 + dn, 52, '♪'); zone(W / 2 - 54, 246, 108, 92, 'mute'); }
   G.zones = VIEW.zones;
 }
 function wrap(c, s, x, y, w, lh, o) { font(o.px, 700); let line = '', yy = y; for (const ch of s) { if (c.measureText(line + ch).width > w) { text(line, x, yy, o); line = ch; yy += lh; } else line += ch; } if (line) text(line, x, yy, o); }
@@ -347,8 +386,12 @@ export function drawTitle(c, G, dt) {
   paper(80, 60, 560, 300, { clip: true, tilt: -.015 });
   text('上班旅人外傳', 120, 140, { px: 30, col: INK2, fam: SERIF, w: 900 });
   text('準時下班防衛戰', 116, 210, { px: 60, fam: SERIF, w: 900 });
-  text('敵人走到打卡機，就扣「下班底氣」。', 122, 262, { px: 20, w: 700 });
-  text('緊急調派同事上工，同名同職級拖在一起就升職。', 122, 292, { px: 20, w: 700 });
+  // 三格圖解：①調派→同事→工位 ②同名同級＋＝升職 ③敵人→打卡機＝底氣−1
+  const px0 = 116, py = 262; c.fillStyle = 'rgba(43,31,24,.08)'; for (let i = 0; i < 3; i++) c.fillRect(px0 + i * 170, py - 34, 158, 70);
+  icon(c, 'summon', px0 + 26, py, 40); text('→', px0 + 52, py + 9, { px: 22, w: 900, col: INK2 }); head(c, 'kui', px0 + 92, py, 40); text('→', px0 + 116, py + 9, { px: 22, w: 900, col: INK2 }); c.strokeStyle = TEAL; c.lineWidth = 3; c.setLineDash([5, 4]); c.strokeRect(px0 + 132, py - 14, 22, 28); c.setLineDash([]);
+  head(c, 'jie', px0 + 196, py, 36); text('+', px0 + 218, py + 8, { px: 22, w: 900, col: INK2 }); head(c, 'jie', px0 + 240, py, 36); text('=', px0 + 262, py + 8, { px: 22, w: 900, col: INK2 }); icon(c, 'promote', px0 + 298, py, 40);
+  const mi = IMG.foe_minion; if (mi) { const k = 40 / mi.height; c.save(); c.translate(px0 + 362, py + 20); c.scale(-1, 1); c.drawImage(mi, -mi.width * k / 2, -40, mi.width * k, 40); c.restore(); }
+  text('→', px0 + 380, py + 9, { px: 22, w: 900, col: INK2 }); icon(c, 'clock_ng', px0 + 420, py, 40); icon(c, 'heart', px0 + 456, py - 6, 26); text('−1', px0 + 446, py + 26, { px: 16, col: RED, w: 900 });
   stamp('今日必須準時', 520, 320, { px: 20 });
   const team = D.DEFAULT_TEAM || ['kui', 'jie', 'kevin', 'yan', 'zhe', 'mi'];
   paper(80, 392, 560, 150, { old: true });
@@ -365,10 +408,10 @@ export function drawResult(c, G, dt) {
   c.fillStyle = 'rgba(20,13,8,.6)'; c.fillRect(0, 0, W, H);
   paper(390, 70, 500, 420, { clip: true, lines: true });
   text('結案報告', 640, 130, { px: 34, align: 'center', fam: SERIF, w: 900 });
-  stamp(r.win ? '準時下班' : '留下加班', 640, 200, { px: 40, col: r.win ? TEAL : RED, rot: -.1 });
+  stamp(r.win ? '準時下班' : '留下加班', 610, 200, { px: 40, col: r.win ? TEAL : RED, rot: -.1 }); icon(c, r.win ? 'clock_ok' : 'clock_ng', 800, 200, 64);
   const rows = [['wave', `${r.wave} / ${D.WAVES.length}`], ['ko', `${r.kills}`], ['life', `${r.lives}`], ['speed', `${Math.floor(r.t / 60)}:${String(Math.floor(r.t % 60)).padStart(2, '0')}`]];
   rows.forEach(([ic, b], i) => { icon(c, ic, 470, 272 + i * 36, 30); text(b, 830, 282 + i * 36, { px: 24, align: 'right', w: 900 }); });
-  button(430, 420, 200, 56, '', { hot: true, down: VIEW.down === 'again' }); icon(c, 'refund', 530, 448, 40, '↻'); zone(430, 420, 200, 56, 'again');
-  button(650, 420, 200, 56, '', { down: VIEW.down === 'title' }); icon(c, 'inbox', 750, 448, 40, '⌂'); zone(650, 420, 200, 56, 'title');
+  button(430, 408, 200, 72, '', { hot: true, down: VIEW.down === 'again' }); icon(c, 'replay', 530, 444, 50, '↻'); zone(430, 408, 200, 72, 'again');
+  button(650, 408, 200, 72, '', { down: VIEW.down === 'title' }); icon(c, 'home', 750, 444, 50, '⌂'); zone(650, 408, 200, 72, 'title');
   G.zones = VIEW.zones;
 }

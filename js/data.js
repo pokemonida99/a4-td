@@ -83,7 +83,8 @@ export const WAVES = [
   { boss: 'boss', name: '奧客總經理', groups: [G('intern', 12, 1.4), G('boss', 1, 1, 6), G('knight', 5, 4, 14), G('courier', 12, .8, 26), G('auntie', 3, 6, 32), G('minion', 14, 1, 40)] },
 ];
 
-// 地圖：跟 art/map/office.json 同一份座標（1280×590 全畫面）。main.js 讀到 json 會用 core.setMap('office', json) 蓋過去。
+// 地圖：跟 art/map/office.json 同一份（定案，1280×590 全畫面；起點 [1190,-10] 讓敵人從畫面外走進來）。
+// main.js 讀到 json 會用 core.setMap('office', json) 蓋過去；這裡是沒讀到時的備用。
 // 三段走廊的 S 形：右上進 → 上走廊往左 → 左轉下 → 中走廊往右 → 右轉下 → 下走廊往左 → 左下打卡機。
 // 12 個工位兩排各 6，每格都夾在兩段走廊中間（交會位）；兩端的工位多碰到轉角。
 export const MAPS = {

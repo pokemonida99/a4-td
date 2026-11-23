@@ -4,7 +4,7 @@ raw 圖的約定（GPT 一張圖）：
   同事  <id>_idle.png      3 列 × 4 欄：down／side（面向右）／up 的待機 4 格
         <id>_atk_<dir>.png  2 列 × 4 欄：出手 8 格（第 1、8 格是站姿）
   敵人  <id>_walk_<dir>.png  2 列 × 4 欄：走路 8 格（一個方向一張）
-        <id>_pose.png       左＝站姿（量比例用）、右＝特殊姿勢 1 格 → art/q/<id>_<姿勢>_down.png
+        <id>_extra.png      一排：站姿（量比例）、受擊 正／側／背、特殊姿勢 → <id>_hit_<dir>.png、<id>_<姿勢>_down.png
 不靠格線：去背後找「一個個人」（連通塊，特效碎片併到最近的人），依列、再依欄排序。
 大小：idle 整張用 down 列的平均身高縮到 TARGET；atk 用第 1、8 格（站姿）身高對齊 idle。
 腳底：每格主體最下面一段的中心＝腳底，所有格子對齊同一個 foot。
@@ -18,6 +18,7 @@ os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TARGET = {'default': 84, 'foe': 76, 'foe_chief': 100, 'foe_boss': 108,   # 正面待機身高（邏輯像素，含帽子）
           'jie': 94}      # 巫師帽很高：含帽 94，身體才跟小葵一樣大
 DIRS = ('down', 'side', 'up')
+ORDER = ('down', 'dside', 'side', 'uside', 'up')      # 輸出與檢查圖的排列順序
 
 def load_rgba(path):
     """去背（綠幕或淺灰底，從四邊灌水）＋去綠邊，回傳 RGBA ndarray"""
@@ -97,20 +98,30 @@ def build(cid):
             if len(ps) != n: print(f'{cid} walk_{d}：找到 {len(ps)} 個（應 {n}）'); continue
             g = grid(ps, 2); row = g[0] + g[1]; k = T / np.median([p['h'] for p in row])
             frames[('walk', d)] = [crop(rgba, p, k) for p in row]
-        pose = {'foe_intern': 'down', 'foe_chief': 'guard', 'foe_boss': 'charge'}.get(cid)
-        src = f'{raw}/{cid}_pose.png'
-        if pose and os.path.exists(src):
-            rgba = load_rgba(src); ps = sorted(people(rgba, 2), key=lambda p: p['cx'])
-            if len(ps) == 2: frames[(pose, 'down')] = [crop(rgba, ps[1], T / ps[0]['h'])]
-            else: print(cid, 'pose 找到', len(ps), '個（應 2）')
+        pose = {'foe_intern': 'fall', 'foe_chief': 'guard', 'foe_boss': 'charge'}.get(cid)
+        src = f'{raw}/{cid}_extra.png'      # 一排：站姿（量比例）、受擊 正／側／背、特殊姿勢
         nfr = {'walk': n}
-        if (pose, 'down') in frames: nfr[pose] = 1
+        if os.path.exists(src):
+            want = 5 if pose else 4; rgba = load_rgba(src); ps = sorted(people(rgba, want), key=lambda p: p['cx'])
+            if len(ps) == want:
+                kx = T / ps[0]['h']
+                for d, p in zip(DIRS, ps[1:4]): frames[('hit', d)] = [crop(rgba, p, kx)]
+                nfr['hit'] = 1
+                if pose: frames[(pose, 'down')] = [crop(rgba, ps[4], kx)]; nfr[pose] = 1
+            else: print(cid, 'extra 找到', len(ps), f'個（應 {want}）')
     else:
         rgba = load_rgba(f'{raw}/{cid}_idle.png'); ps = people(rgba, 12)
         if len(ps) != 12: sys.exit(f'{cid} idle：找到 {len(ps)} 個（應 12）')
         g = grid(ps, 3); k = T / np.mean([p['h'] for p in g[0]])
         for d, row in zip(DIRS, g): frames[('idle', d)] = [crop(rgba, p, k) for p in row]
-        for d in DIRS:
+        src = f'{raw}/{cid}_idle_diag.png'      # 斜向待機：2 列 × 4 欄（dside 斜前、uside 斜後，都朝右）
+        if os.path.exists(src):
+            rgba = load_rgba(src); ps = people(rgba, 8)
+            if len(ps) == 8:
+                g = grid(ps, 2); kk = T / np.mean([p['h'] for p in g[0]])
+                for d, row in zip(('dside', 'uside'), g): frames[('idle', d)] = [crop(rgba, p, kk) for p in row]
+            else: print(f'{cid} idle_diag：找到 {len(ps)} 個（應 8）')
+        for d in DIRS + ('dside', 'uside'):
             src = f'{raw}/{cid}_atk_{d}.png'
             if not os.path.exists(src): print(cid, d, 'atk 還沒生'); continue
             rgba = load_rgba(src); ps = people(rgba, 8)
@@ -125,7 +136,7 @@ def build(cid):
         for im, (fx, fy) in fr: L, R, U, D = max(L, fx), max(R, im.width - fx), max(U, fy), max(D, im.height - fy)
     half = int(np.ceil(max(L, R))) + 2; cw, ch = half * 2, int(np.ceil(U)) + int(np.ceil(D)) + 4; foot = (half, int(np.ceil(U)) + 2)
     os.makedirs('art/q', exist_ok=True); rows = []
-    for (anim, d), fr in frames.items():
+    for (anim, d), fr in sorted(frames.items(), key=lambda kv: (list(nfr).index(kv[0][0]) if kv[0][0] in nfr else 9, ORDER.index(kv[0][1]))):
         strip = Image.new('RGBA', (cw * len(fr), ch))
         for i, (im, (fx, fy)) in enumerate(fr): strip.paste(im, (i * cw + round(foot[0] - fx), round(foot[1] - fy)), im)
         strip.save(f'art/q/{cid}_{anim}_{d}.png'); rows.append((f'{anim}_{d}', strip))

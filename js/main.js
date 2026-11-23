@@ -1,7 +1,7 @@
 // 畫面主程式：縮放、輸入（觸控點選＋拖曳）、主迴圈、標題／對戰／結案三個畫面。
 // 規則全部在 core.js（子 session 維護），這裡只讀狀態、送玩家操作、演 s.ev 事件。
 import * as C from './core.js';
-import { TOWERS, FOES, WAVES } from './data.js';
+import * as D from './data.js';
 import { loadAll, startAudio, sfx, bgm, stopBgm, setMute, PREF, IMG } from './assets.js';
 import { initSkin, W, H } from './skin.js';
 import { drawWorld, drawHud, drawTitle, drawResult, fxFromEvents, FX, layout, slotAt, hudHit, say, resetView, VIEW } from './view.js';
@@ -26,7 +26,7 @@ let lastTouch = 0; document.addEventListener('touchend', e => { const n = Date.n
 // ---------- 開局 ----------
 function newRun() {
   if (MAPJSON && C.setMap && !G.mapSet) { C.setMap('office', MAPJSON); G.mapSet = true; }
-  G.s = C.newGame({ seed: (Date.now() & 0xffffff) }); G.sel = -1; G.drag = null; G.paused = false; resetView();
+  G.s = C.newGame({ seed: (Date.now() & 0xffffff) }); G.sel = -1; G.drag = null; G.paused = false; G.pickSuper = false; resetView();
   G.scene = 'play'; bgm('battle'); say('intro');
 }
 G.newRun = newRun;
@@ -58,6 +58,7 @@ function tap(x, y) {
   const s = G.s, h = hudHit(G, x, y);
   if (h) return hud(h);
   const i = slotAt(s, x, y);
+  if (G.pickSuper) { G.pickSuper = false; if (i >= 0 && s.slots[i].tw) act('super', i); return; }
   if (i < 0) { G.sel = -1; return; }
   if (s.pending && !s.slots[i].tw && C.place) return act('place', i);
   if (s.pending && C.place && s.slots[i].tw) return act('place', i);      // 報到中的人點到同名同級＝直接合併（規則那邊判斷）
@@ -74,7 +75,7 @@ function hud(h) {
   if (h === 'sell' && G.sel >= 0) { act('sell', G.sel); G.sel = -1; return; }
   if (h === 'discard' && C.discard) return act('discard');
   if (h.startsWith('unite:') && C.useUnite) return act('unite', h.slice(6));
-  if (h === 'super' && C.useSuper && G.sel >= 0) return act('super', G.sel);
+  if (h === 'super' && C.useSuper) { if (G.sel >= 0) { act('super', G.sel); G.pickSuper = false; return; } const full = (s.momentum || 0) >= ((D.RULE && D.RULE.superCost) || 100); if (!full) { sfx('cursor', .3); return; } G.pickSuper = !G.pickSuper; sfx('cursor', .6); return; }      // 沒選人：進入「選一位同事」模式
   if (h === 'deselect') { G.sel = -1; return; }
   if (h === 'call' && C.callWave) { if (C.callWave(s)) sfx('confirm', .7); return; }
 }

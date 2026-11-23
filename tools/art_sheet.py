@@ -3,11 +3,11 @@ import json, os, sys
 from PIL import Image, ImageDraw, ImageFont
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FONT = 'fonts/NotoSansTC.ttf'
-NAME = {'idle': '待機', 'atk': '出手', 'walk': '走路', 'down': '正面', 'side': '側面', 'up': '背面'}
+NAME = {'idle': '待機', 'atk': '出手', 'walk': '走路', 'hit': '受擊', 'fall': '倒地', 'guard': '舉鍋', 'charge': '蓄力', 'down': '正面', 'dside': '斜前', 'side': '側面', 'uside': '斜後', 'up': '背面'}
 def strips(cid):
     m = json.load(open(f'art/q/{cid}.json')); cw, ch = m['cell']; out = []
     for anim in m['frames']:
-        for d in ('down', 'side', 'up'):
+        for d in ('down', 'dside', 'side', 'uside', 'up'):
             p = f'art/q/{cid}_{anim}_{d}.png'
             if os.path.exists(p): s = Image.open(p).convert('RGBA'); out.append((anim, d, [s.crop((i * cw, 0, (i + 1) * cw, ch)) for i in range(s.width // cw)]))
     return m, out
@@ -15,7 +15,7 @@ for cid in sys.argv[1:]:
     m, rows = strips(cid); cw, ch = m['cell']; S = 3; f = ImageFont.truetype(FONT, 26); fs = ImageFont.truetype(FONT, 20)
     lw = 150; W = lw + 8 * cw * S + 20; H = 70 + len(rows) * (ch * S + 10)
     sh = Image.new('RGB', (W, H), (58, 52, 46)); dr = ImageDraw.Draw(sh)
-    dr.text((16, 18), f'{cid}　Q 版樣張（格 {cw}×{ch}、腳底 {tuple(m["foot"])}、畫面上身高 84）', font=f, fill=(240, 228, 200))
+    dr.text((16, 18), f'{cid}　Q 版樣張（格 {cw}×{ch}、腳底 {tuple(m["foot"])}）', font=f, fill=(240, 228, 200))
     y = 70
     for anim, d, fr in rows:
         dr.text((16, y + ch * S // 2 - 14), f'{NAME[anim]}・{NAME[d]}', font=fs, fill=(240, 228, 200))

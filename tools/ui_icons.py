@@ -11,15 +11,18 @@ NAMES = ['el_slash', 'el_blunt', 'el_fire', 'el_ice', 'el_holy', 'el_dark',
          'speed', 'pause', 'snd_on', 'snd_off', 'summon', 'inbox',
          'dmg', 'aspd', 'range', 'refund', 'move', 'promote',
          'mom', 'super', 'fatigue', 'shield', 'guard', 'charge']
+NAMES_B = ['replay', 'home', 'ko2', 'call2', 'entrance', 'clock_ok', 'clock_ng', 'reticle', 'heart', 'finger', 'dizzy', 'revive']
 src = sys.argv[1] if len(sys.argv) > 1 else 'design/ui/ui_icons_a.png'
+if src.endswith('_b.png'): NAMES = NAMES_B
+ROWS = len(NAMES) // 6
 a = np.asarray(Image.open(src).convert('RGB')).astype(int)
 bgc = np.median(np.concatenate([a[:6, :6].reshape(-1, 3), a[-6:, -6:].reshape(-1, 3), a[:6, -6:].reshape(-1, 3)]), 0)
 dist = np.abs(a - bgc).max(-1); bgl = dist < 18
 lab, _ = ndi.label(bgl); edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
 fg = ~np.isin(lab, list(edge)); fg = ndi.binary_opening(fg, iterations=1)
-H, W = fg.shape; cw, ch = W / 6, H / 5
+H, W = fg.shape; cw, ch = W / 6, H / ROWS
 os.makedirs('art/ui', exist_ok=True); S = 96
-sheet = Image.new('RGBA', (6 * (S + 8), 5 * (S + 8)), (60, 48, 38, 255))
+sheet = Image.new('RGBA', (6 * (S + 8), ROWS * (S + 8)), (60, 48, 38, 255))
 for i, nm in enumerate(NAMES):
     r, c = divmod(i, 6); x0, y0, x1, y1 = int(c * cw), int(r * ch), int((c + 1) * cw), int((r + 1) * ch)
     m = fg[y0:y1, x0:x1]; l2, n2 = ndi.label(ndi.binary_dilation(m, iterations=3))
@@ -32,4 +35,4 @@ for i, nm in enumerate(NAMES):
     out = Image.new('RGBA', (S, S)); out.paste(im, ((S - im.width) // 2, (S - im.height) // 2), im); out.save(f'art/ui/{nm}.png')
     sheet.paste(out, (c * (S + 8) + 4, r * (S + 8) + 4), out)
     ImageDraw.Draw(sheet).text((c * (S + 8) + 4, r * (S + 8) + S - 6), nm, fill=(255, 255, 255, 255))
-sheet.save('design/ui/check_icons.png'); print('ok', len(NAMES))
+sheet.save(src.replace('.png', '_check.png')); print('ok', len(NAMES))
