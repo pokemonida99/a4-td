@@ -6,17 +6,17 @@ export const RULE = {
   lives: 20,                 // 下班底氣
   leak: 1, bossLeak: 5,      // 一般漏一隻扣 1、頭目扣 5；最終頭目（final）沒打倒＝直接輸
   // 錢只有一種：部門預算（s.coin）。開局給一筆，打倒敵人、過波、提早開波都給，另有很小的月薪避免卡死。
-  coin0: 70, salary: .25,    // 開局 70（約夠調派 3 位）；月薪每秒 0.25（4 秒 1 元）
+  coin0: 100, salary: .25,   // 開局 100（約夠調派 4～5 位）；月薪每秒 0.25（4 秒 1 元）
   sumCost: 20, sumStep: 1, sumMax: 45,   // 緊急調派 20，每調派一次 +1，最多 45
   discardBack: .6,           // 報到中轉派：退回這次調派費用的 60%
   sellBack: [12, 40, 100],   // 場上同事轉派退回（依職級）
-  upCost: [60, 150],         // 直接升職：I→II 60、II→III 150（同名合併免費）
+  upCost: [45, 110],         // 直接升職：I→II 45、II→III 110（同名合併免費）
   pity: 3,                   // 連三次抽不到可合併對象，下一抽保證有
   maxLv: 3, lvK: [1, 1.8, 3.2], lvRange: .06,      // 職級倍率；每升一級射程 +6%
   moveCost: 10,              // 調位（搬／互換）花部門預算；波間第一次免費
   firstDelay: 12, breakT: 8, spawnK: .7,  // spawnK：波次表的時間（gap、at）整體再乘這個 // 開局準備秒數、波間秒數（可提早開波）
   callBonus: 1,              // 提早開波：每省 1 秒給 1 預算
-  waveCoin: [15, 3],         // 過波預算 = 15 + 3×波數
+  waveCoin: [20, 3],         // 過波預算 = 20 + 3×波數
   weakK: 1.5, markWeakK: 2,  // 弱點 ×1.5；被學姊標記時 ×2
   fatK: .2, fatMax: 3, fatDecay: 15,   // 疲勞：每層攻速 −20%，最多 3 層，每 15 秒自己消一層
   mom: { kill: 1, boss: 15, wave: 8, merge: 2, cleanse: 2, cleanseCd: 6 }, momMax: 100,
@@ -34,7 +34,7 @@ export const TOWERS = {
   mi:     { name: '小米',   job: '白魔法師', elem: 'holy',  kind: 'single', dmg: 16, rate: 1.0, range: 170, heal: 5, note: '解除疲勞，沒事就給護盾' },
   vivi:   { name: 'Vivi',   job: '公主',     elem: 'holy',  kind: 'single', dmg: 14, rate: 2.0, range: 180, star: 8, starT: 6, starK: .5, note: '指定本月之星幫他加攻' },
   yan:    { name: '小燕',   job: '控場',     elem: 'ice',   kind: 'splash', dmg: 10, rate: .8,  range: 160, radius: 40, slow: .35, slowT: 1.5, freezeN: 4, freezeT: 1, note: '冰擊減速，連中會凍住' },
-  heilun: { name: '黑輪',   job: '業務',     elem: 'blunt', kind: 'single', dmg: 36, rate: 1.3, range: 240, deal: 4, note: '遠投名片，成交多拿預算' },
+  heilun: { name: '黑輪',   job: '業務',     elem: 'blunt', kind: 'single', dmg: 36, rate: 1.3, range: 240, deal: 2, note: '遠投名片，成交多拿預算' },
   cha:    { name: '茶茶',   job: '補給',     elem: 'holy',  kind: 'support', dmg: 0, rate: 4,   range: 150, haste: .5, hasteT: 6, hasteN: 2, note: '送珍奶，讓旁人出手變快' },
   qiang:  { name: '阿強',   job: '重拳',     elem: 'blunt', kind: 'splash', dmg: 40, rate: 1.6, range: 118, radius: 50, pierceArmor: 1.5, note: '近身重擊，專破重甲' },
   senpai: { name: '學姊',   job: '偵探',     elem: 'slash', kind: 'single', dmg: 44, rate: 1.3, range: 250, target: 'strong', markT: 4, note: '遠距狙擊，標記放大弱點' },

@@ -1,7 +1,7 @@
 // UX 巡檢：真的觸控點完整玩一局，每一步截圖，順便量字級與按鈕大小。
 // 用法：node tools/ux_audit.mjs [寬] [高]　（預設 1280 590；手機小螢幕用 870 402）
 // 需要 localhost:4660 已經開著。截圖放 out/ux/<寬>x<高>/，量測結果寫 out/ux/<寬>x<高>/report.json
-// 為了一局內走完所有流程，有幾步用 page.evaluate 直接改狀態（補人力、指定抽到誰、跳波、補氣勢），都會記在 report.cheats。
+// 為了一局內走完所有流程，有幾步用 page.evaluate 直接改狀態（補預算、指定抽到誰、跳波、補氣勢），都會記在 report.cheats。
 import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync } from 'node:fs';
 const require = createRequire('/Users/hermes/Public/0720/office-idle-reel/'), puppeteer = require('puppeteer-core');
@@ -36,7 +36,7 @@ async function drag(a, b) {
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await wait(300);
 }
 const slotXY = async i => page.evaluate(i => { const s = window.__game.s.slots[i]; return [s.x, s.y]; }, i);
-const st = () => page.evaluate(() => { const s = window.__game.s, G = window.__game; return s ? { scene: G.scene, wave: s.wave, phase: s.phase, res: Math.floor(s.res), coin: s.coin, mom: Math.round(s.momentum), pending: s.pending && s.pending.id, slots: s.slots.map(x => x.tw ? x.tw.id + x.tw.lv : '-').join(' '), sel: G.sel, lives: s.lives, state: s.state } : { scene: G.scene }; });
+const st = () => page.evaluate(() => { const s = window.__game.s, G = window.__game; return s ? { scene: G.scene, wave: s.wave, phase: s.phase, coin: s.coin, mom: Math.round(s.momentum), pending: s.pending && s.pending.id, slots: s.slots.map(x => x.tw ? x.tw.id + x.tw.lv : '-').join(' '), sel: G.sel, lives: s.lives, state: s.state } : { scene: G.scene }; });
 let n = 0;
 async function shot(name, note) {
   await wait(120); const file = `${String(n++).padStart(2, '0')}_${name}.jpg`;
@@ -63,7 +63,7 @@ await cheat('指定第二抽跟第一位同名，測報到中直接合併', id =
 await shot('pending_same', '報到中是同名的人：場上那位應該亮起可合併');
 await tapL(...await slotXY(0)); await shot('merge_from_pending', '點場上同名同級＝合併升 II');
 // 4. 多放幾位，然後拖曳合併
-await cheat('補人力到 200，方便連抽', () => { window.__game.s.res = 200; window.__game.s.resMax = 999; });
+await cheat('補預算到 2000，方便連抽', () => { window.__game.s.coin = 2000; });
 for (const i of [1, 2, 6, 7, 3]) { await tapZone('summon'); await tapL(...await slotXY(i)); }
 await cheat('把 1、2 號工位改成同名 I 級，測拖曳合併', () => { const s = window.__game.s; const id = s.slots[1].tw.id; s.slots[2].tw.id = id; s.slots[2].tw.lv = 1; s.slots[1].tw.lv = 1; });
 await shot('before_drag', '六人上場，1、2 號同名同級');

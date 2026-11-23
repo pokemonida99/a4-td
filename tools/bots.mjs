@@ -10,6 +10,7 @@ function coverage(s, i, r) { const L = s.lanes[0], sl = s.slots[i]; let n = 0; f
 const covCache = new Map();
 function cov(s, i, id) { const k = s.map.name + i + id; if (!covCache.has(k)) covCache.set(k, coverage(s, i, TOWERS[id].range)); return covCache.get(k); }
 const SUPPORT = { mi: 1, cha: 1, vivi: 1 };
+export const BOTS_NOTE = 'random 只會召喚亂放；basic 亂放＋合併＋技能；smart 挑位置＋合併＋升職＋技能；smartNoUp 同 smart 但不升職';
 function slotValue(s, i, id) {
   if (SUPPORT[id]) { let n = 0; for (const o of s.slots) if (o.i !== i && Math.hypot(o.x - s.slots[i].x, (o.y - s.slots[i].y) * 1.25) <= TOWERS[id].range) n++; return n * 60 + cov(s, i, id) * .3; }
   return cov(s, i, id);
@@ -45,10 +46,28 @@ export const bots = {
     for (const u of s.unites) if (C.canUnite(s, u.key) && s.foes.length >= 6) C.useUnite(s, u.key);
     if (s.momentum >= 100) { const best = s.slots.filter(x => x.tw).sort((a, b) => b.tw.lv - a.tw.lv)[0]; if (best) C.useSuper(s, best.i); }
   },
-  smart(s) {
+  smart(s) { return smartPlay(s, true); },
+  smartNoUp(s) { return smartPlay(s, false); },      // 跟 smart 一樣但不花錢升職（比較升職值不值得）
+};
+function smartPlay(s, useUp) {
+  {
     const need = weakNeed(s);
     const val = (id, i) => slotValue(s, i, id) * (1 + (need[TOWERS[id].elem] ? .25 : 0));
-    if (C.canSummon(s)) C.summon(s);
+    const full = !s.slots.some(x => !x.tw);
+    if (!full) { if (C.canSummon(s)) C.summon(s); }
+    else if (!s.pending) {
+      // 滿場：能免費合併就先合併（空出位置），否則看要直接升職還是再抽
+      let best = null;
+      for (let a = 0; a < 12; a++) for (let b = 0; b < 12; b++) if (C.canMerge(s, a, b)) { const T = s.slots[b].tw, sc = -T.lv * 1000 + val(T.id, b) - val(T.id, a); if (!best || sc > best.sc) best = { a, b, sc }; }
+      if (best) C.drop(s, best.a, best.b);
+      else {
+        let up = null;
+        if (useUp) for (const x of s.slots) { const c = C.upgradeCost(s, x.i); if (!isFinite(c) || TOWERS[x.tw.id].kind === 'support') continue; const sc = val(x.tw.id, x.i) * (C.lvK(x.tw.lv + 1) - C.lvK(x.tw.lv)) / c; if (!up || sc > up.sc) up = { i: x.i, c, sc }; }
+        const lv1 = s.slots.filter(x => x.tw.lv === 1).length;
+        if (up && s.coin >= up.c) C.upgrade(s, up.i);
+        else if (C.canSummon(s) && lv1 && (!up || s.sumCost * 2 < up.c - s.coin)) C.summon(s);
+      }
+    }
     if (s.pending) {
       const id = s.pending.id, empty = s.slots.filter(x => !x.tw);
       if (empty.length) { empty.sort((a, b) => val(id, b.i) - val(id, a.i)); C.place(s, empty[0].i); }
@@ -90,6 +109,6 @@ export const bots = {
       const urgent = boss && (boss.charge > 0 || boss.broken);
       if (urgent || (!bossComing && !(bossWave && boss && s.momentum < 100) && s.foes.length >= 8)) C.useUnite(s, u.key);
     }
-  },
-};
+  }
+}
 
