@@ -107,7 +107,7 @@ function frame(now) {
       while (acc >= C.DT && n++ < 12) { C.step(s, C.DT); acc -= C.DT; fxFromEvents(s, G); }
     } else acc = 0;
     if (s.state !== 'play' && !G.endT) { G.endT = G.t; }
-    if (G.endT && G.t - G.endT > 2.2) { G.endT = 0; G.scene = 'result'; G.result = { win: s.state === 'win', wave: s.wave, kills: s.kills, t: s.t, lives: s.lives }; stopBgm(); }
+    if (G.endT && G.t - G.endT > 2.2) { G.endT = 0; G.scene = 'result'; G.result = { win: s.state === 'win', wave: s.wave, kills: s.kills, t: s.t, lives: s.lives }; }
     drawWorld(c, G, dt); drawHud(c, G, dt);
   } else if (G.scene === 'title') drawTitle(c, G, dt);
   else if (G.scene === 'result') { drawWorld(c, G, dt); drawResult(c, G, dt); }

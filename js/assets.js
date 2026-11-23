@@ -51,19 +51,23 @@ export async function loadAll(onProg) {
 }
 
 // ---------- 聲音 ----------
-const SFX = ['card', 'confirm', 'cursor', 'coin', 'hit', 'hit_alt', 'slash', 'slash_alt', 'dark_blast', 'explosion', 'explosion_big', 'heal', 'holy_cast', 'boss_appear', 'boss_down', 'fanfare', 'defeat', 'break', 'buff', 'unite', 'cutin', 'stun', 'shield_up', 'whoosh', 'poison', 'train', 'encounter', 'weak', 'wok_back', 'paper_storm', 'boss_charge', 'shield_block'];
+const SFX = ['card', 'confirm', 'cursor', 'coin', 'hit', 'hit_alt', 'slash', 'slash_alt', 'dark_blast', 'explosion', 'explosion_big', 'heal', 'holy_cast', 'boss_appear', 'boss_down', 'fanfare', 'defeat', 'break', 'buff', 'unite', 'cutin', 'stun', 'shield_up', 'whoosh', 'poison', 'train', 'encounter', 'weak', 'wok_back', 'paper_storm', 'boss_charge', 'shield_block', 'pop', 'stun'];
+const VARIANTS = ['slash', 'hit', 'explosion', 'break', 'holy_cast', 'dark_blast', 'pop', 'coin'];      // 密集的聲音有 _2、_3 變化版就隨機挑
 export async function startAudio() {
   if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
   actx = new (window.AudioContext || window.webkitAudioContext)(); master = actx.createGain(); master.connect(actx.destination);
   bgmGain = actx.createGain(); bgmGain.gain.value = PREF.bgm; bgmGain.connect(master);
   const dec = async (k, src) => { try { const b = await (await fetch(src)).arrayBuffer(); SND[k] = await actx.decodeAudioData(b); } catch (e) { } };
   SFX.forEach(k => dec(k, `audio/sfx/${k}.${k === 'whoosh' ? 'wav' : 'mp3'}`));
-  for (const k of ['battle', 'boss', 'map', 'victory']) dec('bgm_' + k, `audio/bgm/${k}.mp3`);
+  VARIANTS.forEach(k => [2, 3].forEach(n => dec(`${k}_${n}`, `audio/sfx/${k}_${n}.mp3`)));
+  for (const k of ['battle', 'boss', 'map', 'victory', 'lose']) dec('bgm_' + k, `audio/bgm/${k}.mp3`);
 }
 const lastPlay = {};
 export function sfx(k, vol = .7, rate = 1) {
+  const key0 = k;
   if (!actx || !PREF.snd || !SND[k]) return;
-  const now = actx.currentTime; if (lastPlay[k] && now - lastPlay[k] < .06) return; lastPlay[k] = now;      // 同一個聲音太密就跳過，免得爆音
+  if (VARIANTS.includes(k)) { const vs = [k, k + '_2', k + '_3'].filter(v => SND[v]); k = vs[Math.floor(Math.random() * vs.length)]; }
+  const now = actx.currentTime; if (lastPlay[key0] && now - lastPlay[key0] < .05) return; lastPlay[key0] = now;      // 同一個聲音太密就跳過，免得爆音
   const s = actx.createBufferSource(), g = actx.createGain(); s.buffer = SND[k]; s.playbackRate.value = rate; g.gain.value = vol; s.connect(g); g.connect(master); s.start();
 }
 export function bgm(k) {
@@ -72,5 +76,6 @@ export function bgm(k) {
   if (bgmNode) { const old = bgmNode, og = old._g; og.gain.setTargetAtTime(0, actx.currentTime, .4); setTimeout(() => old.stop(), 2000); }
   const s = actx.createBufferSource(), g = actx.createGain(); s.buffer = buf; s.loop = true; g.gain.value = 0; g.gain.setTargetAtTime(1, actx.currentTime, .5); s.connect(g); g.connect(bgmGain); s.start(); s._g = g; bgmNode = s; bgmKey = k;
 }
+export function jingle(k, vol = .9) { if (!actx || !PREF.snd) return; const buf = SND['bgm_' + k]; if (!buf) return; stopBgm(); const s = actx.createBufferSource(), g = actx.createGain(); s.buffer = buf; g.gain.value = vol; s.connect(g); g.connect(bgmGain); s.start(); }
 export function stopBgm() { if (bgmNode) { bgmNode._g.gain.setTargetAtTime(0, actx.currentTime, .3); const o = bgmNode; setTimeout(() => o.stop(), 1500); bgmNode = null; bgmKey = ''; } }
 export function setMute(on) { PREF.snd = on ? 0 : 1; if (master) master.gain.value = on ? 0 : 1; }

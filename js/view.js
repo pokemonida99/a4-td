@@ -2,7 +2,7 @@
 // 地圖座標（core 用的）是 1096×442，畫到畫面上要加 (MX, MY)。
 import * as C from './core.js';
 import * as D from './data.js';
-import { IMG, Q, sfx, bgm, TRAIT_IC } from './assets.js';
+import { IMG, Q, sfx, bgm, jingle, TRAIT_IC } from './assets.js';
 import { W, H, INK, INK2, CREAM, TEAL, RED, BRASS, GOLD, SANS, SERIF, ELEM, rnd, pats, font, text, wood, paper, stamp, button, bar, clip, stud } from './skin.js';
 
 export const MX = 0, MY = 0, MW = 1280, MH = 590;      // 地圖鋪滿全畫面，介面浮在上面（11/23 使用者要照參考圖的豐富度）
@@ -50,13 +50,13 @@ export function fxFromEvents(s, G) {
       const v = VIEW.tw[tw.uid] || (VIEW.tw[tw.uid] = {}); v.dir = dirOf(sl.x, sl.y, e.x, e.y); v.flip = e.x < sl.x; v.actT = 0; v.acting = true;
       FX.push({ k: 'shot', elem: e.elem, kind: e.kind, x0: sl.x, y0: sl.y - 30, x: e.x, y: e.y - 18, r: e.radius || 0, t: 0, life: e.kind === 'splash' ? .45 : .3, x2: e.x2, y2: e.y2 });
       const snd = { slash: 'slash', blunt: 'hit', fire: 'explosion', ice: 'break', holy: 'holy_cast', dark: 'dark_blast' }[e.elem] || 'hit';
-      sfx(snd, e.elem === 'fire' ? .18 : .26, .95 + Math.random() * .15);
+      sfx(snd, .3);
     } else if (e.k === 'dmg') {
       const f = s.foes.find(q => Math.abs(q.x - e.x) < 3 && Math.abs(q.y - e.y) < 3), tone = f && f.guard ? 'guard' : f && f.broken ? 'broken' : e.weak ? 'weak' : '';
       const old = FX.find(q => q.k === 'num' && q.dmg && q.t < .3 && Math.abs(q.x0 - e.x) < 24 && Math.abs(q.y0 - e.y) < 18);      // 同一隻 0.3 秒內合併成一個數字
       if (old) { old.v += e.v; old.t = Math.min(old.t, .08); if (tone) old.tone = tone; }
       else FX.push({ k: 'num', dmg: true, x0: e.x, y0: e.y, x: e.x + (Math.random() * 14 - 7), y: Math.max(84, e.y - 46), v: e.v, tone, t: 0, life: .75 }); }
-    else if (e.k === 'die') { for (let i = 0; i < (e.boss ? 26 : 7); i++) FX.push({ k: 'paper', x: e.x, y: e.y - 20, vx: (Math.random() - .5) * 160, vy: -60 - Math.random() * 120, rot: Math.random() * 6, vr: (Math.random() - .5) * 12, t: 0, life: .9 + Math.random() * .4 }); if (e.boss) { sfx('boss_down', .8); VIEW.shake = .5; VIEW.bossKind = null; } else sfx('coin', .25, 1.2); }
+    else if (e.k === 'die') { for (let i = 0; i < (e.boss ? 26 : 7); i++) FX.push({ k: 'paper', x: e.x, y: e.y - 20, vx: (Math.random() - .5) * 160, vy: -60 - Math.random() * 120, rot: Math.random() * 6, vr: (Math.random() - .5) * 12, t: 0, life: .9 + Math.random() * .4 }); if (e.boss) { sfx('boss_down', .8); VIEW.shake = .5; VIEW.bossKind = null; } else sfx('pop', .32); }
     else if (e.k === 'leak') { VIEW.flash = .5; VIEW.shake = .25; sfx('defeat', .35, 1.4); say('leak'); if (s.lives <= s.livesMax * .3) say('low', true); }
     else if (e.k === 'summon') { FX.push({ k: 'pop', slot: e.slot, t: 0, life: .5 }); sfx('confirm', .5); }
     else if (e.k === 'pending') { VIEW.pendT = 0; }
@@ -83,8 +83,8 @@ export function fxFromEvents(s, G) {
     else if (e.k === 'wave') { VIEW.banner = { n: e.n, boss: e.boss, t: 0 }; sfx(e.boss ? 'boss_appear' : 'encounter', .6); if (!e.boss) say('wave'); }
     else if (e.k === 'boss') { VIEW.bossKind = e.kind; say('boss_' + e.kind) ; if (!LINES['boss_' + e.kind]) say('boss'); bgm('boss'); }
     else if (e.k === 'gen') FX.push({ k: 'ico', ic: 'res', x: s.slots[e.slot].x, y: s.slots[e.slot].y - 80, v: '+' + Math.round(e.v), t: 0, life: .9 });
-    else if (e.k === 'win') { say('win', true); sfx('fanfare', .8); }
-    else if (e.k === 'lose') { say('lose', true); sfx('defeat', .8); }
+    else if (e.k === 'win') { say('win', true); jingle('victory'); }
+    else if (e.k === 'lose') { say('lose', true); jingle('lose'); }
   }
   s.ev.length = 0;
 }
