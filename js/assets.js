@@ -18,6 +18,7 @@ export const RICON = { r_seal: 'sk_gavel', r_sweep: 'sk_sweep', r_burn: 'sk_burn
   r_box: 'sk_carry', r_cutter: 'up_cutter', r_lens: 'sk_probe', r_file: 'up_dossier', r_spin: 'sk_encore', r_music: 'sk_dance', r_knife: 'sk_eager', r_block: 'sk_lock',
   r_mouse: 'sk_mice', r_mouse2: 'sk_minutes', r_ice: 'sk_cooldown', r_hand: 'sk_handover', r_pierce: 'up_redpen', r_flame: 'up_ember', r_cone: 'sk_wetfloor', r_lock: 'sk_cordon' };
 export const HEROES = ['kui', 'jie', 'kevin', 'mi', 'yan', 'zhe', 'heilun', 'cha', 'qiang', 'senpai', 'you', 'xu', 'wu', 'fairy', 'an', 'vivi'];
+export const FOE_USED = ['minion', 'courier', 'knight', 'intern', 'auntie', 'chief', 'boss', 'ghost', 'clerk', 'patcher', 'cart', 'mini'];
 export const FOE_ART = { minion: 'minion', courier: 'courier', knight: 'knight', intern: 'intern', auntie: 'auntie', smoker: 'smoker', chief: 'chief', boss: 'boss', parrot: 'parrot', monkey: 'monkey', pig: 'pig', audit: 'audit', ghost: 'ghost', clerk: 'clerk', patcher: 'patcher', cart: 'cart', mini: 'mini' };      // 後五種只有新 Q 版圖（沒有 RPG 舊圖）
 const DIRS = ['down', 'dside', 'side', 'uside', 'up'];      // 8 方向：畫 5 個（斜前 dside、斜後 uside 都面向右），左邊翻轉
 
@@ -26,7 +27,8 @@ async function loadQ(id) {
   let dir = 'art/q', meta = QS.get('style') ? null : await json(`${dir}/${id}.json`);      // 正式圖（美術 session 做的）優先，沒有就用樣張
   if (!meta) { dir = `art/q_${STYLE}`; meta = await json(`${dir}/${id}.json`); } if (!meta) return null;
   const strips = {};
-  await Promise.all(Object.keys(meta.frames).flatMap(a => DIRS.map(async d => { const im = await img(`${dir}/${id}_${a}_${d}.png`); if (im) strips[`${a}_${d}`] = im; })));
+  const foe = id.startsWith('foe_'), dirsOf = a => foe ? (meta.frames[a] === 1 && a !== 'hit' ? ['down'] : ['down', 'side', 'up']) : DIRS;      // 敵人只有三方向、特殊姿勢只有正面；不去抓不存在的檔
+  await Promise.all(Object.keys(meta.frames).flatMap(a => dirsOf(a).map(async d => { const im = await img(`${dir}/${id}_${a}_${d}.png`); if (im) strips[`${a}_${d}`] = im; })));
   return { ...meta, strips };
 }
 
@@ -39,7 +41,7 @@ export async function loadAll(onProg) {
     jobs.push(loadQ(id).then(q => { if (q) Q[id] = q; }));
   }
   for (const k in FOE_ART) {
-    const a = FOE_ART[k];
+    const a = FOE_ART[k]; if (!FOE_USED.includes(k)) continue;      // 沒用到的敵人不載
     jobs.push(img(`art/enemy/${a}_idle.png`).then(i => IMG[`foe_${k}`] = i));
     jobs.push(img(`art/enemy/${a}_${['chief', 'boss', 'parrot', 'monkey', 'pig', 'audit'].includes(a) ? 'hurt' : 'hit'}.png`).then(i => IMG[`foe_${k}_hit`] = i));
     jobs.push(loadQ(`foe_${k}`).then(q => { if (q) Q[`foe_${k}`] = q; }));
