@@ -224,7 +224,7 @@ function drawTower(c, s, sl, t, dt) {
   rankGems(c, x, y + 20, tw.lv);      // 職級：工位前緣的菱形（◆◇◇）
   if (tw.super > 0) { c.strokeStyle = GOLD; c.lineWidth = 4; c.beginPath(); c.arc(x, y - 96, 13, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, tw.super / (D.RULE?.superT || 12))); c.stroke(); icon(c, 'super', x, y - 96, 20); }
   if (VIEW.pickSuper) { const b = .5 + .5 * Math.sin(t * 8); icon(c, 'super', x, y - 100 - b * 4, 30); }
-  if (tw.shield) { const sx = x + 20, sy = y - 66; c.fillStyle = '#1a0f08'; c.fillRect(sx - 6, sy - 7, 12, 13); c.fillStyle = '#cfe8ff'; c.fillRect(sx - 5, sy - 6, 10, 8); c.fillRect(sx - 3, sy + 2, 6, 3); c.fillStyle = '#7fb4e0'; c.fillRect(sx - 1, sy - 5, 2, 8); }      // 專注護盾：頭旁小盾牌
+  if (tw.shield) icon(c, 'shield', x + 24, y - 66, 24, '◆');      // 專注護盾
   if (tw.star > 0) text('★', x - 22, y - 62, { px: 16, col: GOLD, stroke: '#1a0f08', sw: 3 });
   if (tw.haste > 0) { c.fillStyle = '#9be0c8'; c.fillRect(x - 26, y - 50, 4, 4); c.fillRect(x - 22, y - 56, 4, 4); }
   if (tw.fatigue > 0) { icon(c, 'fatigue', x - 24, y - 70, 26, 'z'); if (tw.fatigue > 1) text(String(tw.fatigue), x - 12, y - 58, { px: 15, col: '#d8c8ff', stroke: '#1a0f08', sw: 3, w: 900 }); }
@@ -259,7 +259,8 @@ function drawFx(c, dt) {
       if (fly >= 1 && (e.r || e.elem === 'blunt')) { const r = (e.r || 22) * Math.min(1, (k - .4) * 2.5 + .2); c.strokeStyle = col; c.globalAlpha = 1 - k; c.lineWidth = 3; c.beginPath(); c.ellipse(x1, y1 + 14, r, r / 1.25, 0, 0, 7); c.stroke(); c.globalAlpha = 1; }
     } else if (e.k === 'num') {
       const y = MY + e.y - k * 26; c.globalAlpha = k > .7 ? (1 - k) / .3 : 1;
-      const px = e.big ? 26 : e.tone === 'weak' || e.tone === 'broken' ? 21 : e.tone === 'guard' ? 12 : 14, col = e.col || (e.tone === 'weak' || e.tone === 'broken' ? GOLD : e.tone === 'guard' ? '#9a9088' : '#fff4e0');
+      const px = e.big ? 28 : e.tone === 'weak' || e.tone === 'broken' ? 24 : e.tone === 'guard' ? 15 : 18,      // 小手機縮 0.68 倍後也要看得清楚
+        _ = 0, col = e.col || (e.tone === 'weak' || e.tone === 'broken' ? GOLD : e.tone === 'guard' ? '#9a9088' : '#fff4e0');
       text(String(Math.round(e.v)), MX + e.x, Math.max(80, y), { px, align: 'center', col, stroke: '#1a0f08', sw: 4, w: 900 }); c.globalAlpha = 1;
     } else if (e.k === 'ring') {
       const r = 8 + k * 34; c.strokeStyle = e.col; c.globalAlpha = 1 - k; c.lineWidth = 3; c.beginPath(); c.ellipse(MX + e.x, MY + e.y, r, r * .7, 0, 0, 7); c.stroke(); c.globalAlpha = 1;
@@ -373,7 +374,7 @@ export function drawHud(c, G, dt) {
   if (sel) {
     const Dt = T()[sel.id] || {};
     head(c, sel.id, ix + 42, by + 46, 64);
-    const tic = IMG['ic_' + TRAIT_IC[sel.id]]; if (tic) { c.fillStyle = '#1a0f08'; c.beginPath(); c.arc(ix + 66, by + 70, 17, 0, 7); c.fill(); c.drawImage(tic, ix + 51, by + 55, 30, 30); zone(ix + 44, by + 48, 44, 44, 'trait'); }      // 特色圖示：點了說明
+    const tic = IMG['ic_' + TRAIT_IC[sel.id]]; if (tic) { c.fillStyle = '#1a0f08'; c.beginPath(); c.arc(ix + 66, by + 70, 17, 0, 7); c.fill(); c.drawImage(tic, ix + 51, by + 55, 30, 30); zone(ix + 4, by + 4, 92, 88, 'trait'); }      // 整顆頭像都能點      // 特色圖示：點了說明
     text(Dt.name || sel.id, ix + 84, by + 30, { px: 20, fam: SERIF, w: 900 }); font(20, 900, SERIF); const nw = c.measureText(Dt.name || '').width;
     icon(c, ELK[Dt.elem], ix + 98 + nw, by + 23, 26, (ELEM[Dt.elem] || [''])[0]); rankGems(c, ix + 152 + nw, by + 24, sel.lv);
     const rr = C.rangeOf ? C.rangeOf(sel) : Dt.range;
