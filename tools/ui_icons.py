@@ -13,7 +13,9 @@ NAMES = ['el_slash', 'el_blunt', 'el_fire', 'el_ice', 'el_holy', 'el_dark',
          'mom', 'super', 'fatigue', 'shield', 'guard', 'charge']
 NAMES_B = ['replay', 'home', 'ko2', 'call2', 'entrance', 'clock_ok', 'clock_ng', 'reticle', 'heart', 'finger', 'dizzy', 'revive']
 src = sys.argv[1] if len(sys.argv) > 1 else 'design/ui/ui_icons_a.png'
+NAMES_C = ['tr_camo', 'tr_armor', 'tr_resist', 'tr_regen', 'tr_split', 'tr_fast', 'st_broken', 'st_noregen', 'st_reveal', 'reroute', 'pick', 'bag']
 if src.endswith('_b.png'): NAMES = NAMES_B
+if src.endswith('_c.png'): NAMES = NAMES_C
 ROWS = len(NAMES) // 6
 a = np.asarray(Image.open(src).convert('RGB')).astype(int)
 bgc = np.median(np.concatenate([a[:6, :6].reshape(-1, 3), a[-6:, -6:].reshape(-1, 3), a[:6, -6:].reshape(-1, 3)]), 0)
