@@ -112,11 +112,13 @@ function drawHero(c, id, x, y, o = {}) {
 }
 const FOE_H = { minion: 46, courier: 44, knight: 52, intern: 44, auntie: 46, smoker: 46, chief: 78, boss: 96, parrot: 80, monkey: 70, pig: 84, audit: 80 };
 function drawFoe(c, f, x, y, t) {
+  const fq0 = Q['foe_' + f.kind];
   const v = VIEW.foe[f.uid] || (VIEW.foe[f.uid] = { px: f.x, py: f.y, dir: 'side', flip: false });
   const dx = f.x - v.px, dy = f.y - v.py; if (Math.abs(dx) + Math.abs(dy) > .3) { v.dir = Math.abs(dy) > Math.abs(dx) ? (dy > 0 ? 'down' : 'up') : 'side'; v.flip = dx < 0; } v.px = f.x; v.py = f.y;
-  const ph = (t * 1.8 + (f.ph || f.uid * .37)) % 1; if (f.down > 0) c.globalAlpha = .45;
+  const ph = (t * 1.25 * Math.max(.6, (F()[f.kind]?.spd || 46) / 46) * (f.slow > 0 ? 1 - f.slow : 1) + (f.ph || f.uid * .37)) % 1;      // 步伐跟移動速度走（信差快、被冰住會慢）
+  if (f.down > 0 && !(fq0 && fq0.strips.fall_down)) c.globalAlpha = .45;
   c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(x, y, f.boss ? 30 : 15, f.boss ? 8 : 5, 0, 0, 7); c.fill();
-  const fq = Q['foe_' + f.kind], pose = fq && (f.down > 0 && fq.strips.down_down ? 'down' : f.guard && fq.strips.guard_down ? 'guard' : f.charge > 0 && fq.strips.charge_down ? 'charge' : null);      // 特殊姿勢只有正面一張
+  const fq = Q['foe_' + f.kind], pose = fq && (f.down > 0 && fq.strips.fall_down ? 'fall' : f.guard && fq.strips.guard_down ? 'guard' : f.charge > 0 && fq.strips.charge_down ? 'charge' : null);      // 特殊姿勢只有正面一張
   if (!drawQ(c, 'foe_' + f.kind, pose || (f.hitT > 0 && fq?.strips['hit_' + v.dir] ? 'hit' : 'walk'), pose ? 'down' : v.dir, v.flip, ph, x, y)) {
     const im = (f.hitT > 0 && IMG[`foe_${f.kind}_hit`]) || IMG[`foe_${f.kind}`]; if (!im) { c.fillStyle = RED; c.fillRect(x - 10, y - 30, 20, 30); }
     else { const h = FOE_H[f.kind] || 48, k = h / im.height, bob = Math.abs(Math.sin(ph * Math.PI * 2)) * (f.boss ? 2 : 3);
@@ -271,7 +273,7 @@ function drawBanner(c, dt) {
   const k = b.t < .25 ? b.t / .25 : b.t > 2.2 ? (2.6 - b.t) / .4 : 1, y = 62, w = 380, x = 256 - (1 - k) * 700, s = window.__game.s, Wv = D.WAVES[(b.n || s.wave) - 1];
   c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(x + 4, y + 5, w, 54); c.fillStyle = b.boss ? '#5a1712' : pats().WOOD_D; c.fillRect(x, y, w, 54); c.fillStyle = b.boss ? RED : BRASS; c.fillRect(x, y, 6, 54);
   icon(c, b.boss ? 'charge' : 'wave', x + 34, y + 27, 40, '▶'); num(b.n || s.wave, x + 58, y + 40, 30, { col: GOLD });
-  if (Wv) { const ks = [...new Set(Wv.groups.map(g => g.kind))]; ks.slice(0, 5).forEach((kd, i) => { const im = IMG['foe_' + kd]; if (!im) return; const hh = 40, kk = hh / im.height; c.save(); c.translate(x + 140 + i * 48, y + 50); c.scale(-1, 1); c.drawImage(im, -im.width * kk / 2, -hh, im.width * kk, hh); c.restore(); }); }
+  if (Wv) { const ks = [...new Set(Wv.groups.map(g => g.kind))]; ks.slice(0, 5).forEach((kd, i) => foeMini(c, kd, x + 140 + i * 48, y + 50, 40)); }
 }
 
 // ---------- 介面 ----------
@@ -287,6 +289,12 @@ function head(c, id, x, y, s) {      // 立繪裁成圓形頭像
   c.strokeStyle = '#1a0f08'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, s / 2, 0, 7); c.stroke(); c.strokeStyle = BRASS; c.lineWidth = 1.5; c.beginPath(); c.arc(x, y, s / 2 - 2, 0, 7); c.stroke();
 }
 const num = (s, x, y, px, o = {}) => text(String(s), x, y, { px, col: o.col ?? CREAM, stroke: '#1a0f08', sw: 4, w: 900, align: o.align ?? 'left' });
+// 敵人小圖（介面用）：有新 Q 版就用正面走路第一格，沒有退回舊的 RPG 側面圖；(x, y) 是腳底
+function foeMini(c, kind, x, y, h) {
+  const q = Q['foe_' + kind], st = q && (q.strips.walk_down || q.strips.walk_side);
+  if (st) { const k = h / (q.foot[1] * .92); c.drawImage(st, 0, 0, q.cell[0], q.cell[1], Math.round(x - q.foot[0] * k), Math.round(y - q.foot[1] * k), Math.round(q.cell[0] * k), Math.round(q.cell[1] * k)); return; }
+  const im = IMG['foe_' + kind]; if (!im) return; const k = h / im.height; c.save(); c.translate(x, y); c.scale(-1, 1); c.drawImage(im, -im.width * k / 2, -h, im.width * k, h); c.restore();
+}
 export function drawHud(c, G, dt) {
   const s = G.s, t = G.t; VIEW.pickSuper = G.pickSuper;
   // 左上：波次＋下班底氣＋開下一波（手機上按鈕至少 64 邏輯像素高）
@@ -314,7 +322,7 @@ export function drawHud(c, G, dt) {
     icon(c, 'wave', 26, ky + 20, 24); num(s.wave + 1, 42, ky + 28, 18, { col: GOLD });
     kinds.slice(0, 4).forEach((o, j) => { const y = ky + 54 + j * 34, im = IMG['foe_' + o.k], bossK = F()[o.k]?.boss;
       c.fillStyle = bossK ? 'rgba(178,58,48,.35)' : 'rgba(239,230,207,.12)'; c.fillRect(14, y - 15, 164, 30);
-      if (im) { const k = 28 / im.height; c.save(); c.translate(34, y + 13); c.scale(-1, 1); c.drawImage(im, -im.width * k / 2, -28, im.width * k, 28); c.restore(); }
+      foeMini(c, o.k, 34, y + 14, 28);
       num(`×${o.n}`, 58, y + 7, 18); const wk = F()[o.k]?.weak?.[0]; if (wk) icon(c, ELK[wk], 160, y, 26, (ELEM[wk] || [''])[0]); }); }
   // 上緣：資源木牌
   const rx0 = 256; wood(rx0, 8, 380, 50);
@@ -327,7 +335,7 @@ export function drawHud(c, G, dt) {
     if (k === 'speed') text(`×${G.speed}`, bx + 37, 50 + dn, { px: 28, align: 'center', col: INK, w: 900 }); else icon(c, 'pause', bx + 37, 39 + dn, 40, 'Ⅱ'); zone(bx - 2, 2, 78, 76, k); }
   // 頭目血條
   const boss = s.foes.find(f => f.boss);
-  if (boss) { const bx0 = 816; wood(bx0, 8, 300, 50); const im = IMG['foe_' + boss.kind]; if (im) { const k = 42 / im.height; c.save(); c.beginPath(); c.rect(bx0 + 6, 12, 46, 42); c.clip(); c.translate(bx0 + 29, 56); c.scale(-1, 1); c.drawImage(im, -im.width * k / 2, -42, im.width * k, 42); c.restore(); }
+  if (boss) { const bx0 = 816; wood(bx0, 8, 300, 50); c.save(); c.beginPath(); c.rect(bx0 + 6, 12, 46, 42); c.clip(); foeMini(c, boss.kind, bx0 + 29, 70, 60); c.restore();
     bar(bx0 + 58, 26, 196, 14, boss.hp / boss.max, '#c8554a'); if (boss.guard) icon(c, 'guard', bx0 + 276, 33, 36); else if (boss.charge > 0) icon(c, 'charge', bx0 + 276, 33, 36); else if (boss.broken) icon(c, 'dizzy', bx0 + 276, 33, 36, '!!'); }
   // 底部：緊急調派（報到中有人時蓋收件匣，指向報到中）
   const by = 490, pend = !!s.pending, can = C.canSummon(s), dn = VIEW.down === 'summon' ? 3 : 0;
@@ -390,7 +398,7 @@ export function drawTitle(c, G, dt) {
   const px0 = 116, py = 262; c.fillStyle = 'rgba(43,31,24,.08)'; for (let i = 0; i < 3; i++) c.fillRect(px0 + i * 170, py - 34, 158, 70);
   icon(c, 'summon', px0 + 26, py, 40); text('→', px0 + 52, py + 9, { px: 22, w: 900, col: INK2 }); head(c, 'kui', px0 + 92, py, 40); text('→', px0 + 116, py + 9, { px: 22, w: 900, col: INK2 }); c.strokeStyle = TEAL; c.lineWidth = 3; c.setLineDash([5, 4]); c.strokeRect(px0 + 132, py - 14, 22, 28); c.setLineDash([]);
   head(c, 'jie', px0 + 196, py, 36); text('+', px0 + 218, py + 8, { px: 22, w: 900, col: INK2 }); head(c, 'jie', px0 + 240, py, 36); text('=', px0 + 262, py + 8, { px: 22, w: 900, col: INK2 }); icon(c, 'promote', px0 + 298, py, 40);
-  const mi = IMG.foe_minion; if (mi) { const k = 40 / mi.height; c.save(); c.translate(px0 + 362, py + 20); c.scale(-1, 1); c.drawImage(mi, -mi.width * k / 2, -40, mi.width * k, 40); c.restore(); }
+  foeMini(c, 'minion', px0 + 362, py + 22, 42);
   text('→', px0 + 380, py + 9, { px: 22, w: 900, col: INK2 }); icon(c, 'clock_ng', px0 + 420, py, 40); icon(c, 'heart', px0 + 456, py - 6, 26); text('−1', px0 + 446, py + 26, { px: 16, col: RED, w: 900 });
   stamp('今日必須準時', 520, 320, { px: 20 });
   const team = D.DEFAULT_TEAM || ['kui', 'jie', 'kevin', 'yan', 'zhe', 'mi'];
