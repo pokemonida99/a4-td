@@ -33,7 +33,7 @@ export function say(k, force) {
 // ---------- 路線與屬性 ----------
 export function ricon(c, code, x, y, s) { const m = RICON[code] || ''; if (m.startsWith('ui:')) return icon(c, m.slice(3), x, y, s); const im = IMG['ic_' + m]; if (im) { c.drawImage(im, Math.round(x - s / 2), Math.round(y - s / 2), s, s); return true; } return icon(c, 'promote', x, y, s); }
 const TRAIT_UI = { camo: 'tr_camo', armor: 'tr_armor', magic: 'tr_resist', regen: 'tr_regen', split: 'tr_split', fast: 'tr_fast' };
-export const TRAIT_TXT = { camo: ['掛名', '看不到！要有人揭露才打得到'], armor: ['重甲', '傷害打六折，破甲後才痛'], magic: ['術抗', '火冰光暗只剩三成，用斬、打'], regen: ['再生', '沒挨打就回血，封住再生'], split: ['轉寄', '倒下吐出小公文，準備範圍攻擊'], fast: ['快遞', '跑很快，減速或終點補刀'] };
+export const TRAIT_TXT = { camo: ['掛名', '要有人揭露才打得到'], armor: ['重甲', '傷害打六折，要破甲'], magic: ['術抗', '火冰光暗只剩三成'], regen: ['再生', '沒挨打就會回血'], split: ['轉寄', '倒下吐出小公文'], fast: ['快遞', '跑很快，要減速'] };      // 小手機也要一行看完
 const routeData = tw => tw && tw.route ? D.ROUTES?.[tw.id]?.[tw.route] : null;
 const lv3List = s => s.slots.filter(q => q.tw && q.tw.lv >= 3 && routeData(q.tw)).sort((a, b) => (VIEW.lv3T?.[b.tw.uid] || 0) - (VIEW.lv3T?.[a.tw.uid] || 0));
 
@@ -415,8 +415,8 @@ export function drawHud(c, G, dt) {
   if (needR) {
     ['a', 'b'].forEach((k, j) => { const r = R[k], cx = ix + j * 202, cy = by; button(cx, cy, 198, 92, '', { hot: true, down: VIEW.down === 'route:' + k });
       c.fillStyle = '#1a0f08'; c.beginPath(); c.arc(cx + 34, cy + 38, 26, 0, 7); c.fill(); ricon(c, r.icon, cx + 34, cy + 38, 44); text(k.toUpperCase(), cx + 34, cy + 82, { px: 15, align: 'center', col: TEAL, w: 900 });
-      text(r.name, cx + 66, cy + 27, { px: 19, fam: SERIF, w: 900 }); wrap(c, r.note, cx + 66, cy + 49, 124, 18, { px: 15, col: INK2 });
-      if (r.skill) { icon(c, 'super', cx + 74, cy + 78, 16); text(r.skill.name, cx + 86, cy + 84, { px: 14, col: TEAL, w: 900 }); }      // III 會拿到的技能
+      text(r.name, cx + 66, cy + 27, { px: 19, fam: SERIF, w: 900 }); wrap(c, r.note, cx + 64, cy + 48, 128, 19, { px: 17, col: INK2 });
+      if (r.skill) { icon(c, 'super', cx + 72, cy + 80, 18); text(r.skill.name, cx + 84, cy + 86, { px: 16, col: TEAL, w: 900 }); }      // III 會拿到的技能
       zone(cx, cy, 198, 92, 'route:' + k); });
   } else { paper(ix, by, iw, 92, {});
   if (sel) {
@@ -469,7 +469,7 @@ export function drawHud(c, G, dt) {
   if (VIEW.teach) { VIEW.teach.t += dt; const trs = VIEW.teach.tr, per = 4.5, idx = Math.floor(VIEW.teach.t / per);
     if (idx >= trs.length) VIEW.teach = null; else { const tr = trs[idx], lt = VIEW.teach.t - idx * per, k = Math.min(1, lt / .25), cx = 190 - (1 - k) * 240, cy = 306;
       paper(cx, cy, 200, 92, {}); icon(c, TRAIT_UI[tr], cx + 28, cy + 30, 40); const [nm, ds] = TRAIT_TXT[tr] || ['', '']; text(nm, cx + 56, cy + 38, { px: 21, fam: SERIF, w: 900 });
-      if (trs.length > 1) text(`${idx + 1}/${trs.length}`, cx + 190, cy + 24, { px: 13, align: 'right', col: INK2, w: 900 }); wrap(c, ds, cx + 12, cy + 64, 180, 19, { px: 16, col: INK2 }); zone(cx, cy, 200, 92, 'teach'); } }
+      if (trs.length > 1) text(`${idx + 1}/${trs.length}`, cx + 190, cy + 24, { px: 13, align: 'right', col: INK2, w: 900 }); wrap(c, ds, cx + 10, cy + 72, 184, 21, { px: 18, col: INK2, w: 900 }); zone(cx, cy, 200, 92, 'teach'); } }
   // 暫停：地圖變暗，暫停鍵發亮；聲音開關在這裡
   if (G.paused) { c.fillStyle = 'rgba(20,13,8,.55)'; c.fillRect(0, 84, W, 400); const dn = VIEW.down === 'mute' ? 3 : 0; button(W / 2 - 50, 250, 100, 84, '', { down: VIEW.down === 'mute' }); icon(c, G.mute ? 'snd_off' : 'snd_on', W / 2, 292 + dn, 52, '♪'); zone(W / 2 - 54, 246, 108, 92, 'mute'); }
   G.zones = VIEW.zones;
