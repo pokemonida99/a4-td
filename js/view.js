@@ -60,6 +60,8 @@ export function fxFromEvents(s, G) {
     else if (e.k === 'leak') { VIEW.flash = .5; VIEW.shake = .25; sfx('defeat', .35, 1.4); say('leak'); if (s.lives <= s.livesMax * .3) say('low', true); }
     else if (e.k === 'summon') { FX.push({ k: 'pop', slot: e.slot, t: 0, life: .5 }); sfx('confirm', .5); }
     else if (e.k === 'pending') { VIEW.pendT = 0; }
+    else if (e.k === 'coin') { if (FX.filter(q => q.k === 'coinfly').length < 14) FX.push({ k: 'coinfly', x0: e.x, y0: e.y - 30, v: e.v, t: 0, life: .7 }); }
+    else if (e.k === 'upgrade') { FX.push({ k: 'merge', slot: e.slot, lv: e.lv, t: 0, life: 1.1 }); sfx('train', .7); sfx('coin', .5); say('merge'); }
     else if (e.k === 'clear') { FX.push({ k: 'ico', ic: 'coin', x: 640, y: 440, v: `+${e.coin}`, t: 0, life: 1.6, big: true }); sfx('coin', .7); }
     else if (e.k === 'unite') { FX.push({ k: 'unite', key: e.key, x: e.x, y: e.y, x2: e.x2, y2: e.y2, r: e.r || 150, t: 0, life: 1.2 }); VIEW.cut = { key: e.key, t: 0 }; VIEW.shake = .45; sfx('unite', .9); }
     else if (e.k === 'super') { const sl = s.slots[e.slot]; if (sl) { FX.push({ k: 'ico', ic: 'super', x: sl.x, y: sl.y - 90, t: 0, life: 1.2, big: true }); FX.push({ k: 'ring', x: sl.x, y: sl.y - 30, col: GOLD, t: 0, life: .8 }); } sfx('buff', .9); }
@@ -269,6 +271,9 @@ function drawFx(c, dt) {
       if (e.x2 != null) { const g = 30 * (1 - k) + 8; c.strokeStyle = '#ff7a2e'; c.lineWidth = g; c.beginPath(); c.moveTo(MX + e.x, MY + e.y); c.lineTo(MX + e.x2, MY + e.y2); c.stroke(); c.strokeStyle = '#fff4e0'; c.lineWidth = g / 3; c.stroke(); }
       else { const r = e.r * Math.min(1, k * 3); c.fillStyle = 'rgba(127,212,240,.25)'; c.beginPath(); c.ellipse(MX + e.x, MY + e.y, r, r / 1.25, 0, 0, 7); c.fill(); c.strokeStyle = '#b083f0'; c.lineWidth = 5; c.stroke(); }
       c.globalAlpha = 1;
+    } else if (e.k === 'coinfly') {      // 擊倒掉的金幣飛進左上的預算
+      const [tx, ty] = VIEW.coinXY || [286, 26], q = Math.min(1, k / .85), ez = q * q, fx = e.x0 + (tx - e.x0) * ez, fy = e.y0 + (ty - e.y0) * ez - Math.sin(q * Math.PI) * 40;
+      icon(c, 'coin', MX + fx, MY + fy, 18); if (k > .85 && !e.done) { e.done = true; VIEW.coinT = .25; }
     } else if (e.k === 'fly') {      // 圖示從 (x0,y0) 飛到 (x1,y1)，到了跳數字
       const q = Math.min(1, k / .6), ez = q * q * (3 - 2 * q), fx = e.x0 + (e.x1 - e.x0) * ez, fy = e.y0 + (e.y1 - e.y0) * ez - Math.sin(q * Math.PI) * 80;
       if (k < .6) icon(c, e.ic, MX + fx, MY + fy, 40); else { c.globalAlpha = 1 - (k - .6) / .4; text(e.v, e.x1 + 30, e.y1 + 8 - (k - .6) * 30, { px: 26, col: '#ff6a5a', stroke: '#1a0f08', sw: 4, w: 900 }); c.globalAlpha = 1; }
@@ -346,10 +351,10 @@ export function drawHud(c, G, dt) {
       num(`×${o.n}`, 58, y + 7, 18); const wk = F()[o.k]?.weak?.[0]; if (wk) icon(c, ELK[wk], 160, y, 26, (ELEM[wk] || [''])[0]); }); }
   // 上緣：資源木牌
   const rx0 = 256; wood(rx0, 4, 380, 44);
-  const resK = Math.min(1, s.res / Math.max(1, s.sumCost));
-  icon(c, 'res', rx0 + 26, 26, 32, '人'); num(Math.floor(s.res), rx0 + 48, 36, 25, { col: resK >= 1 ? GOLD : CREAM });
-  icon(c, 'coin', rx0 + 158, 26, 30, '$'); num(s.coin ?? 0, rx0 + 178, 35, 22);
+  const cb = VIEW.coinT > 0 ? (VIEW.coinT -= dt, 1 + VIEW.coinT * 1.2) : 1;      // 金幣飛進來時跳一下
+  icon(c, 'coin', rx0 + 30, 26, 36 * cb, '$'); num(Math.floor(s.coin ?? 0), rx0 + 56, 37, 28, { col: (s.coin ?? 0) >= s.sumCost ? GOLD : CREAM });
   icon(c, 'ko2', rx0 + 268, 26, 30, 'KO'); num(s.kills, rx0 + 288, 35, 22);
+  VIEW.coinXY = [rx0 + 30, 26];
   // 倍速、暫停：放在資源木牌右邊，不擋右上的入口（聲音收進暫停畫面）
   for (const [i, k] of [[0, 'speed'], [1, 'pause']]) { const bx = 8 + i * 92, byy = 504, dn = VIEW.down === k ? 3 : 0; button(bx, byy, 84, 78, '', { down: VIEW.down === k, hot: k === 'pause' && G.paused });      // 左下角：不擋上走廊的敵人
     if (k === 'speed') text(`×${G.speed}`, bx + 42, byy + 52 + dn, { px: 30, align: 'center', col: INK, w: 900 }); else icon(c, 'pause', bx + 42, byy + 39 + dn, 44, 'Ⅱ'); zone(bx - 2, byy - 2, 88, 82, k); }
@@ -360,14 +365,14 @@ export function drawHud(c, G, dt) {
   // 底部：緊急調派（報到中有人時蓋收件匣，指向報到中）
   const by = 490, pend = !!s.pending, can = C.canSummon(s), dn = VIEW.down === 'summon' ? 3 : 0;
   button(200, by, 160, 92, '', { hot: can, off: !can, down: VIEW.down === 'summon' }); c.globalAlpha = can ? 1 : .55; icon(c, 'summon', 244, by + 44 + dn, 58, '召'); c.globalAlpha = 1;
-  icon(c, 'res', 298, by + 34 + dn, 24); text(`−${s.sumCost}`, 312, by + 42 + dn, { px: 20, col: s.res >= s.sumCost ? INK : RED, w: 900 });
+  icon(c, 'coin', 298, by + 34 + dn, 24); text(`−${s.sumCost}`, 312, by + 42 + dn, { px: 20, col: (s.coin ?? 0) >= s.sumCost ? INK : RED, w: 900 });
   if (pend) { icon(c, 'inbox', 312, by + 70 + dn, 30); text('→', 334, by + 78 + dn, { px: 20, col: TEAL, w: 900 }); } zone(200, by, 160, 92, 'summon');
   // 新手指引：還沒放過人時，手指點紅電話；報到中有人時，手指點第一個空工位
   if (s.wave === 0 && s.phase === 'break') { const b = Math.abs(Math.sin(t * 5)) * 10; if (pend) { const e = s.slots.find(q => !q.tw); if (e) icon(c, 'finger', MX + e.x, MY + e.y - 90 - b, 44); } else if (!s.slots.some(q => q.tw)) icon(c, 'finger', 244, by - 30 - b, 48); }
   // 報到中
   wood(370, by, 108, 92); icon(c, 'inbox', 388, by + 18, 26);
   if (pend) { c.save(); c.beginPath(); c.rect(374, by + 4, 100, 84); c.clip(); drawHero(c, s.pending.id, 428, by + 88, { t, sc: .9 }); c.restore();
-    if (C.discard) { button(374, by - 72, 100, 66, '', { down: VIEW.down === 'discard' }); icon(c, 'refund', 402, by - 39, 34); text(`+${D.RULE?.discardBack ?? 5}`, 422, by - 30, { px: 20, w: 900 }); zone(372, by - 76, 104, 72, 'discard'); } }
+    if (C.discard) { button(374, by - 72, 100, 66, '', { down: VIEW.down === 'discard' }); icon(c, 'refund', 402, by - 39, 34); text(`+${Math.round((s.pending.paid ?? s.sumCost) * (D.RULE?.discardBack ?? .6))}`, 422, by - 30, { px: 20, w: 900 }); zone(372, by - 76, 104, 72, 'discard'); } }
   // 選中同事
   const ix = 488, iw = 400; paper(ix, by, iw, 92, {});
   const sel = G.sel >= 0 && s.slots[G.sel] && s.slots[G.sel].tw;
@@ -383,6 +388,10 @@ export function drawHud(c, G, dt) {
       icon(c, 'range', ix + 256, by + 66, 26); text(String(Math.round(rr)), ix + 272, by + 74, { px: 18, w: 900 }); }
     if (C.moveCost) { const mc = C.moveCost(s), mx = ix + 258; icon(c, 'move', mx, by + 22, 24); if (mc) { icon(c, 'coin', mx + 22, by + 22, 18); text(String(mc), mx + 32, by + 29, { px: 15, col: mc > (s.coin || 0) ? RED : INK, w: 900 }); } else text('0', mx + 16, by + 29, { px: 16, col: TEAL, w: 900 }); }
     button(ix + iw - 72, by + 8, 66, 76, '', { down: VIEW.down === 'sell' }); icon(c, 'refund', ix + iw - 39, by + 36, 36); text(`+${(D.RULE?.sellBack || [5, 10, 20])[sel.lv - 1]}`, ix + iw - 39, by + 74, { px: 17, align: 'center', w: 900 }); zone(ix + iw - 74, by + 4, 70, 84, 'sell');
+    if (C.upgradeCost) { const uc = C.upgradeCost(s, G.sel), can = C.canUpgrade(s, G.sel), ux = ix + iw - 136, uy = by - 78;      // 升職：花預算直接升一級（浮在資料卡右上）
+      button(ux, uy, 130, 72, '', { hot: can, off: !can, down: VIEW.down === 'upgrade' }); c.globalAlpha = can ? 1 : .5; icon(c, 'promote', ux + 36, uy + 36, 46, '↑'); c.globalAlpha = 1;
+      if (isFinite(uc)) { icon(c, 'coin', ux + 76, uy + 36, 22); text(String(uc), ux + 90, uy + 44, { px: 20, col: (s.coin ?? 0) >= uc ? INK : RED, w: 900 }); } else rankGems(c, ux + 92, uy + 36, sel.lv);
+      zone(ux - 2, uy - 2, 134, 76, 'upgrade'); }
   } else {      // 沒選人：圖解「同名同級拖在一起＝升級」
     const demo = s.slots.find(x => x.tw)?.tw.id || 'kui';
     head(c, demo, ix + 50, by + 46, 54); text('+', ix + 92, by + 56, { px: 30, w: 900, col: INK2 }); head(c, demo, ix + 134, by + 46, 54);

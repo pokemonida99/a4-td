@@ -8,7 +8,7 @@ page.on('pageerror', e => errors.push(e.message));
 await page.goto(`http://localhost:4660/?play&fresh=${Date.now()}`); await page.waitForFunction('window.__bootDone && window.__game.s'); await wait(400);
 const tap = async (x, y) => { await page.touchscreen.tap(x, y); await wait(300); };
 const zone = k => page.evaluate(k => { const z = (__game.zones || []).find(z => z[4] === k); return z && [z[0] + z[2] / 2, z[1] + z[3] / 2]; }, k);
-await page.evaluate(() => { __game.s.res = 400; __game.s.resMax = 999; });
+await page.evaluate(() => { __game.s.coin = 999; });
 const slots = await page.evaluate(() => __game.s.slots.map(s => [s.x, s.y]));
 for (const [i, id] of [[0, 'kui'], [1, 'zhe'], [6, 'jie'], [7, 'yan']]) { await tap(...await zone('summon')); await page.evaluate(id => { __game.s.pending = { id, lv: 1 }; }, id); await tap(...slots[i]); }
 await tap(...await zone('call')); await wait(6000);

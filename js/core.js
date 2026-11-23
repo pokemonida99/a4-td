@@ -6,13 +6,15 @@
 //   step(s, dt=DT)                 推進一格（DT＝1/30 秒；倍速就多跑幾格）
 //   setMap(name, json)             換地圖（art/map/office.json：{ path, slots, gate, clock }；座標系跟著 json，現在是 1280×590）
 //   --- 玩家操作：成功回傳真值、失敗回傳 false／null，成功的都記進 s.log ---
-//   canSummon(s) / summon(s)       緊急調派：花 s.sumCost 人力，抽一位放進「報到中」s.pending={id,lv}
+//   錢只有一種：部門預算 s.coin（舊的「人力額度」s.res 已拿掉）
+//   canSummon(s) / summon(s)       緊急調派：花 s.sumCost 預算（每調派一次 +RULE.sumStep），抽一位放進「報到中」s.pending={id,lv,paid}
 //   canPlace(s, i) / place(s, i)   報到中 → 空工位；點到場上同名同級＝直接合併升級
-//   discard(s)                     報到中轉派：退回 RULE.discardBack 人力
+//   discard(s)                     報到中轉派：退回這次費用 × RULE.discardBack
 //   canMerge(s, a, b)              a、b 兩格同名同級且未滿級
 //   canDrop(s, a, b) / drop(s,a,b) 拖 a 到 b：能合併＝合併（免費）；否則搬過去／互換＝調位（花 moveCost(s) 預算）
 //   moveCost(s)                    這次調位要花多少預算（波間第一次 0）
-//   sell(s, i)                     場上同事轉派：退回人力（依職級 RULE.sellBack）
+//   sell(s, i)                     場上同事轉派：退回預算（依職級 RULE.sellBack）
+//   canUpgrade(s, i) / upgradeCost(s, i) / upgrade(s, i)   直接升職：花預算升一級（RULE.upCost，比合併貴但不用等同名）
 //   callWave(s)                    波間提早開波（每省 1 秒給 1 預算）
 //   canUnite(s, key) / useUnite(s, key, x?, y?)   合體技（不給 x,y 就自動挑敵人最多的地方）
 //   canSuper(s, i) / useSuper(s, i)               超級化：氣勢 100，指定一人 12 秒
@@ -22,8 +24,8 @@
 //
 // ===== 狀態（view 讀）=====
 //   s.state 'play'|'win'|'lose'　s.phase 'break'（波間，s.waveT 倒數）|'fight'（s.waveT=0）
-//   s.wave 已開的波數（WAVES[s.wave] 是下一波）　s.lives / s.livesMax　s.res / s.resMax / s.sumCost
-//   s.coin 部門預算　s.kills　s.momentum（0～100）　s.freeMove（波間免費調位還在）　s.cds[key] 合體技冷卻
+//   s.wave 已開的波數（WAVES[s.wave] 是下一波）　s.lives / s.livesMax　s.sumCost（下一次調派的價錢）
+//   s.coin 部門預算（整數）　s.kills　s.momentum（0～100）　s.freeMove（波間免費調位還在）　s.cds[key] 合體技冷卻
 //   s.pending {id, lv} | null　s.unites 這隊能用的合體技（UNITES 的子集）
 //   s.slots[i] = { i, x, y, tw }　tw = { uid, id, lv, fatigue(0～3), shield, super(剩餘秒), haste, star, kills }
 //   s.foes[]  = { uid, kind, x, y, hp, max, boss, final, hitT, slow, burnT, stun, mark,
@@ -34,7 +36,8 @@
 //   shot   { slot, id, uid, x, y, elem, kind, radius, dir:'down'|'side'|'up', flip:敵人在左, x2,y2:直線終點, heavy:重擊 }
 //   dmg    { x, y, v, weak, elem }　　die { x, y, kind, boss, uid }　　down { x, y, uid }（倒下會復起）　revive { x, y, uid }
 //   leak   { kind, v, final }　　pending { id }　　summon { slot, id }（放上工位）　　merge { slot, id, lv }
-//   discard { id }　　sell { slot, id }　　move { from, to, cost }
+//   discard { id, back }　　sell { slot, id, back }　　move { from, to, cost }　　upgrade { slot, id, lv, cost }
+//   coin { x, y, v }（打倒敵人拿到預算：從 x,y 飛進預算）
 //   wave   { n, boss, name }　　boss { kind }　　clear { n, coin }　　win　　lose
 //   fatigue { slot, n, x, y }（x,y 來源）　shield { slot }（護盾擋掉一次）　cleanse { slot, to:[格] }
 //   buff   { slot, to, kind:'haste'|'star'|'potion'|'dance' }　　cone { x, y }　　mouse { x, y }
@@ -76,12 +79,12 @@ export function newGame(o = {}) {
     opts: { seed, team, map: mapKey }, rnd: mulberry(seed), n: 0, t: 0,
     map, lanes, slots: map.slots.map((p, i) => ({ i, x: p[0], y: p[1], tw: null })),
     foes: [], mice: [], cones: [], spawnQ: [], ev: [], log: [], uid: 1,
-    res: RULE.res0, resMax: RULE.resMax, sumCost: RULE.sumCost, sums: 0, miss: 0, pending: null,
-    lives: RULE.lives, livesMax: RULE.lives, coin: 0, kills: 0, leaks: 0,
+    sumCost: RULE.sumCost, sums: 0, miss: 0, pending: null, salT: 0,
+    lives: RULE.lives, livesMax: RULE.lives, coin: RULE.coin0, kills: 0, leaks: 0,
     wave: 0, phase: 'break', waveT: RULE.firstDelay, freeMove: true, state: 'play',
     momentum: 0, momCd: 0, cds: {}, team, pool: team,
     unites: UNITES.filter(u => u.who.every(w => team.includes(w))),
-    stat: { dmg: {}, sums: 0, merges: 0, discards: 0, moves: 0, unites: 0, supers: 0, complains: 0 },
+    stat: { dmg: {}, sums: 0, merges: 0, upgrades: 0, discards: 0, moves: 0, unites: 0, supers: 0, complains: 0, earned: 0, spent: { summon: 0, upgrade: 0, move: 0 } },
   };
   return s;
 }
@@ -89,7 +92,7 @@ const mom = (s, v) => { s.momentum = clamp(s.momentum + v, 0, RULE.momMax); };
 const ok = (s, name, args) => { s.log.push([s.n, name, ...args]); return true; };
 
 // ---------- 玩家操作 ----------
-export const canSummon = s => s.state === 'play' && !s.pending && s.res >= s.sumCost;
+export const canSummon = s => s.state === 'play' && !s.pending && s.coin >= s.sumCost;
 const mergeable = s => new Set(s.slots.filter(x => x.tw && x.tw.lv === 1).map(x => x.tw.id));
 export function summon(s) {
   if (!canSummon(s)) return null;
@@ -97,8 +100,9 @@ export function summon(s) {
   const from = s.miss >= RULE.pity && hit.length ? hit : s.pool;
   const id = from[Math.floor(s.rnd() * from.length)];
   s.miss = mg.has(id) ? 0 : s.miss + 1;
-  s.res -= s.sumCost; s.sums++; s.stat.sums++;
-  s.pending = { id, lv: 1 }; s.ev.push({ k: 'pending', id });
+  const paid = s.sumCost; s.coin -= paid; s.sums++; s.stat.sums++; s.stat.spent.summon += paid;
+  s.sumCost = Math.min(RULE.sumMax, RULE.sumCost + RULE.sumStep * s.sums);
+  s.pending = { id, lv: 1, paid }; s.ev.push({ k: 'pending', id });
   ok(s, 'summon', []); return s.pending;
 }
 export function canPlace(s, i) {
@@ -114,8 +118,8 @@ export function place(s, i) {
 }
 export function discard(s) {
   if (!s.pending || s.state !== 'play') return false;
-  s.ev.push({ k: 'discard', id: s.pending.id }); s.pending = null; s.stat.discards++;
-  s.res = Math.min(s.resMax, s.res + RULE.discardBack); return ok(s, 'discard', []);
+  const back = Math.round((s.pending.paid ?? s.sumCost) * RULE.discardBack); s.coin += back;
+  s.ev.push({ k: 'discard', id: s.pending.id, back }); s.pending = null; s.stat.discards++; return ok(s, 'discard', []);
 }
 function newTower(s, id, lv) {
   return { uid: s.uid++, id, lv, cd: .3 + s.rnd() * .3, skT: 0, fatigue: 0, fatT: 0, shield: false, super: 0, haste: 0, hasteK: 0, star: 0, starK: 0,
@@ -132,15 +136,23 @@ export function drop(s, a, b) {
   const A = s.slots[a], B = s.slots[b];
   if (canMerge(s, a, b)) { A.tw = null; mergeInto(s, B, B.tw.id, B.tw.lv + 1); }
   else {
-    const cost = moveCost(s); s.coin -= cost; if (s.phase === 'break') s.freeMove = false;
+    const cost = moveCost(s); s.coin -= cost; s.stat.spent.move += cost; if (s.phase === 'break') s.freeMove = false;
     [A.tw, B.tw] = [B.tw, A.tw]; s.stat.moves++; s.ev.push({ k: 'move', from: a, to: b, cost });
   }
   return ok(s, 'drop', [a, b]);
 }
 export function sell(s, i) {
   const sl = s.slots[i], T = sl?.tw; if (!T || s.state !== 'play') return false;
-  s.res = Math.min(s.resMax, s.res + RULE.sellBack[T.lv - 1]); sl.tw = null; s.ev.push({ k: 'sell', slot: i, id: T.id });
+  const back = RULE.sellBack[T.lv - 1]; s.coin += back; sl.tw = null; s.ev.push({ k: 'sell', slot: i, id: T.id, back });
   return ok(s, 'sell', [i]);
+}
+export const upgradeCost = (s, i) => { const T = s.slots[i]?.tw; return T && T.lv < RULE.maxLv ? RULE.upCost[T.lv - 1] : Infinity; };
+export const canUpgrade = (s, i) => s.state === 'play' && !!s.slots[i]?.tw && s.coin >= upgradeCost(s, i);
+export function upgrade(s, i) {      // 直接升職：同一位同事升一級（保留疲勞、超級化等狀態）
+  if (!canUpgrade(s, i)) return false;
+  const T = s.slots[i].tw, cost = upgradeCost(s, i); s.coin -= cost; T.lv++; s.stat.upgrades++; s.stat.spent.upgrade += cost;
+  s.ev.push({ k: 'upgrade', slot: i, id: T.id, lv: T.lv, cost }); mom(s, RULE.mom.merge);
+  return ok(s, 'upgrade', [i]);
 }
 export function callWave(s) {
   if (s.state !== 'play' || s.phase !== 'break' || s.wave >= WAVES.length) return false;
@@ -191,7 +203,7 @@ export function useSuper(s, i) {
 }
 
 // ---------- 重演 ----------
-const OPS = { summon, place, discard, drop, sell, callWave, unite: useUnite, super: useSuper };
+const OPS = { summon, place, discard, drop, sell, upgrade, callWave, unite: useUnite, super: useSuper };
 export function replay(opts, log, steps = Infinity) {
   const s = newGame(opts); let i = 0;
   while (s.state === 'play' && s.n < steps) {
@@ -249,7 +261,7 @@ export function hurt(s, f, dmg, elem, T, o = {}) {
   if (f.hp <= 0) {
     const F = FOES[f.kind];
     if (F.revive && !f.revived) { f.revived = true; f.hp = 0; f.down = F.reviveT; f.burnT = 0; f.slowT = 0; f.slow = 0; s.ev.push({ k: 'down', x: f.x, y: f.y, uid: f.uid }); return d; }
-    f.hp = 0; f.gone = true; s.kills++; s.coin += (F.coin || 1) + f.sold; mom(s, f.boss ? RULE.mom.boss : RULE.mom.kill);
+    f.hp = 0; f.gone = true; s.kills++; const cv = (F.coin || 1) + f.sold; s.coin += cv; s.stat.earned += cv; s.ev.push({ k: 'coin', x: f.x, y: f.y, v: cv }); mom(s, f.boss ? RULE.mom.boss : RULE.mom.kill);
     if (T) T.kills++;
     s.ev.push({ k: 'die', x: f.x, y: f.y, kind: f.kind, boss: f.boss, uid: f.uid });
   }
@@ -427,7 +439,7 @@ function towerStep(s, sl, dt) {
 export function step(s, dt = DT) {
   if (s.state !== 'play') return;
   s.n++; s.t += dt;
-  s.res = Math.min(s.resMax, s.res + (RULE.resPerSec + RULE.resWave * s.wave) * dt);
+  s.salT += RULE.salary * dt; if (s.salT >= 1 - 1e-6) { const v = Math.floor(s.salT + 1e-6); s.salT -= v; s.coin += v; }      // 月薪
   s.momCd = Math.max(0, s.momCd - dt);
   for (const k in s.cds) s.cds[k] = Math.max(0, s.cds[k] - dt);
   if (s.phase === 'break') { s.waveT -= dt; if (s.waveT <= 0) startWave(s); }

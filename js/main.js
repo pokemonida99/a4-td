@@ -74,6 +74,7 @@ function hud(h) {
   if (h === 'pause') { G.paused = !G.paused; sfx('cursor', .5); return; }
   if (h === 'mute') { G.mute = !G.mute; setMute(G.mute); return; }
   if (h === 'sell' && G.sel >= 0) { act('sell', G.sel); G.sel = -1; return; }
+  if (h === 'upgrade' && G.sel >= 0 && C.upgrade) { if (!act('upgrade', G.sel)) sfx('cursor', .3); return; }
   if (h === 'discard' && C.discard) return act('discard');
   if (h.startsWith('unite:') && C.useUnite) { const key = h.slice(6), u = (s.unites || D.UNITES).find(q => q.key === key); if (!C.canUnite(s, key)) { sfx('cursor', .3); return; } if (u && u.kind === 'team') { G.aim = null; return act('unite', key); } G.aim = G.aim === key ? null : key; G.pickSuper = false; sfx('cursor', .6); return; }      // 合體技：先瞄準，點地圖才發動
   if (h === 'super' && C.useSuper) { if (G.sel >= 0) { act('super', G.sel); G.pickSuper = false; return; } const full = (s.momentum || 0) >= ((D.RULE && D.RULE.superCost) || 100); if (!full) { sfx('cursor', .3); return; } G.pickSuper = !G.pickSuper; sfx('cursor', .6); return; }      // 沒選人：進入「選一位同事」模式
@@ -87,6 +88,7 @@ function act(kind, a, b) {
   else if (kind === 'place') { ok = C.place(s, a); sfx(ok ? 'confirm' : 'cursor', .6); }
   else if (kind === 'drop') { ok = C.drop(s, a, b); }
   else if (kind === 'sell') { ok = C.sell(s, a); sfx('coin', .6); }
+  else if (kind === 'upgrade') { ok = C.canUpgrade(s, a) && C.upgrade(s, a); }
   else if (kind === 'discard') { ok = C.discard(s); sfx('coin', .6); }
   else if (kind === 'unite') { ok = C.useUnite(s, a, b, arguments[3]); }
   else if (kind === 'super') { ok = C.useSuper(s, a); }

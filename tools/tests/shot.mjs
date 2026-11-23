@@ -8,7 +8,7 @@ const page = await browser.newPage(); await page.setViewport({ width: 1280, heig
 page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !m.text().includes('404')) errors.push('[console] ' + m.text()); });
 await page.goto(`http://localhost:4660/?play&fresh=${Date.now()}`); await page.waitForFunction('window.__bootDone && window.__game.s', { timeout: 60000 }); await wait(500);
 const tap = async (x, y) => { await page.touchscreen.tap(x, y); await wait(250); };
-await page.evaluate(() => { __game.s.res = 400; __game.s.resMax = 999; });
+await page.evaluate(() => { __game.s.coin = 999; });
 const slots = await page.evaluate(() => __game.s.slots.map(s => [s.x, s.y]));
 const ONLY = process.env.ONLY, SIX = process.env.LIST ? process.env.LIST.split(',') : process.env.SIX ? ['kui', 'jie', 'kevin', 'yan', 'zhe', 'mi', 'kui', 'jie'] : null;      // LIST=a,b,c：依序放這些人      // SIX=1：預設六人各放一位      // ONLY=kui：全部放同一個人（檢查動畫用）
 for (const i of (process.env.LIST ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] : [0, 1, 2, 3, 6, 7, 8, 9])) { await tap(280, 536); const pid = ONLY || (SIX && SIX.shift()); if (pid) await page.evaluate(id => { __game.s.pending = { id, lv: 1 }; }, pid); await tap(slots[i][0], slots[i][1]); }

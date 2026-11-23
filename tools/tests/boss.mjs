@@ -6,7 +6,7 @@ const b = await puppeteer.launch({ executablePath: '/Applications/Google Chrome.
 const p = await b.newPage(); await p.setViewport({ width: 1280, height: 590, deviceScaleFactor: 1.5, isMobile: true, hasTouch: true }); p.on('pageerror', e => errors.push(e.message));
 await p.goto(`http://localhost:4660/?play&f=${Date.now()}`); await p.waitForFunction('window.__bootDone && window.__game.s');
 const slots = await p.evaluate(() => __game.s.slots.map(s => [s.x, s.y]));
-await p.evaluate(() => { __game.s.res = 999; __game.s.resMax = 999; });
+await p.evaluate(() => { __game.s.coin = 999; });
 for (const [i, id] of [[0, 'kui'], [1, 'jie'], [2, 'kevin'], [6, 'yan'], [7, 'zhe'], [8, 'mi']]) { await p.touchscreen.tap(280, 536); await wait(200); await p.evaluate(id => { __game.s.pending = { id, lv: 1 }; }, id); await p.touchscreen.tap(...slots[i]); await wait(200); }
 await p.evaluate(() => { const s = __game.s; s.wave = 9; s.waveT = .5; __game.speed = 3; });
 let shot = 0;
