@@ -5,7 +5,7 @@ import * as D from './data.js';
 import { IMG, Q, sfx, bgm } from './assets.js';
 import { W, H, INK, INK2, CREAM, TEAL, RED, BRASS, GOLD, SANS, SERIF, ELEM, rnd, pats, font, text, wood, paper, stamp, button, bar, clip, stud } from './skin.js';
 
-export const MX = 184, MY = 48, MW = 1096, MH = 442;
+export const MX = 0, MY = 0, MW = 1280, MH = 590;      // 地圖鋪滿全畫面，介面浮在上面（11/23 使用者要照參考圖的豐富度）
 export const VIEW = { hover: null, down: null, summonT: 0, talk: null, zones: [], tw: {}, foe: {}, banner: null, shake: 0, flash: 0 };
 export const FX = [];
 const T = () => D.TOWERS, F = () => D.FOES;
@@ -119,6 +119,7 @@ function drawMap(c, s) {
 }
 function tag(c, x, y, s, col) { font(15, 900); const w = c.measureText(s).width + 14; c.fillStyle = '#1a0f08'; c.fillRect(x - w / 2 - 2, y - 13, w + 4, 24); c.fillStyle = col; c.fillRect(x - w / 2, y - 11, w, 20); text(s, x, y + 4, { px: 15, align: 'center', col: CREAM, w: 900 }); }
 function drawPad(c, x, y, o = {}) {
+  if (IMG.map) { if (o.ring) { c.strokeStyle = o.ring; c.lineWidth = 3; c.setLineDash(o.dash ? [6, 5] : []); c.strokeRect(x - 34, y - 32, 68, 62); c.setLineDash([]); } return; }      // 新地圖已經畫好工位，只畫選取框
   if (IMG.pad) { const m = IMG.padMeta || { foot: [IMG.pad.width / 2, IMG.pad.height / 2] }, k = m.scale || 1; c.drawImage(IMG.pad, Math.round(x - m.foot[0] * k), Math.round(y - m.foot[1] * k), IMG.pad.width * k, IMG.pad.height * k); }
   else { c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(x - 31, y - 9, 66, 22); c.fillStyle = pats().WOOD; c.fillRect(x - 33, y - 13, 66, 22); c.fillStyle = 'rgba(230,220,194,.85)'; c.fillRect(x - 27, y - 9, 54, 12); c.strokeStyle = '#24130b'; c.lineWidth = 2; c.strokeRect(x - 33, y - 13, 66, 22); stud(x - 28, y + 4); stud(x + 28, y + 4); }
   if (o.ring) { c.strokeStyle = o.ring; c.lineWidth = 3; c.setLineDash(o.dash ? [6, 5] : []); c.strokeRect(x - 37, y - 17, 74, 30); c.setLineDash([]); }
@@ -196,7 +197,7 @@ function drawFx(c, dt) {
 }
 function drawBanner(c, dt) {
   const b = VIEW.banner; if (!b) return; b.t += dt; if (b.t > 2.6) { VIEW.banner = null; return; }
-  const k = b.t < .25 ? b.t / .25 : b.t > 2.2 ? (2.6 - b.t) / .4 : 1, y = b.boss ? MY + 10 : MY + MH - 62, w = 420, x = MX + 24 - (1 - k) * 460;
+  const k = b.t < .25 ? b.t / .25 : b.t > 2.2 ? (2.6 - b.t) / .4 : 1, y = 62, w = 420, x = 256 - (1 - k) * 700;
   c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(x + 4, y + 5, w, 50); c.fillStyle = b.boss ? '#5a1712' : pats().WOOD_D; c.fillRect(x, y, w, 50); c.fillStyle = b.boss ? RED : BRASS; c.fillRect(x, y, 6, 50);
   text(b.s, x + 22, y + 34, { px: 26, col: CREAM, fam: SERIF, w: 900 }); font(26, 900, SERIF); const tw = c.measureText(b.s).width;
   text(b.sub || '', x + 38 + tw, y + 32, { px: 17, col: b.boss ? '#ffd0c4' : '#d9c7a0', w: 700 });
@@ -205,73 +206,71 @@ function drawBanner(c, dt) {
 // ---------- 介面 ----------
 export function drawHud(c, G, dt) {
   const s = G.s, t = G.t;
-  // 左側會議側欄
-  c.fillStyle = pats().WOOD_D; c.fillRect(0, 0, MX, H); c.fillStyle = '#1a0f08'; c.fillRect(MX - 3, 0, 3, H);
-  paper(10, 12, 164, 132, { clip: true });
-  text('今日議程', 92, 42, { px: 17, align: 'center', col: INK2, fam: SERIF, w: 900 });
-  text(`第 ${Math.max(1, s.wave)} 波`, 92, 76, { px: 28, align: 'center', fam: SERIF, w: 900 }); text(`／${D.WAVES.length}`, 150, 76, { px: 14, col: INK2 });
-  const next = s.wave < D.WAVES.length ? Math.max(0, s.waveT) : 0;
-  text('下班底氣', 22, 104, { px: 14, col: INK2, w: 700 }); text(`${s.lives}／${s.livesMax}`, 162, 104, { px: 16, align: 'right', col: s.lives <= s.livesMax * .3 ? RED : INK, w: 900 });
-  bar(22, 112, 140, 10, s.lives / s.livesMax, s.lives <= s.livesMax * .3 ? '#d24a3a' : '#c8554a');
-  if (s.wave < D.WAVES.length && s.wave > 0) text(`下一波 ${Math.ceil(next)} 秒`, 92, 138, { px: 13, align: 'center', col: INK2, w: 700 });
-  // 下一波敵情
-  paper(10, 156, 164, 132, { old: true });
-  text(s.wave < D.WAVES.length ? '下一波敵情' : '最後一波', 92, 180, { px: 15, align: 'center', col: INK2, fam: SERIF, w: 900 });
-  const NW = D.WAVES[s.wave]; if (NW) { const kinds = []; NW.groups.forEach(g => { const o = kinds.find(z => z.k === g.kind); o ? o.n += g.n : kinds.push({ k: g.kind, n: g.n }); });
-    kinds.slice(0, 3).forEach((o, j) => { const y = 214 + j * 30, im = IMG['foe_' + o.k]; if (im) { const k = 26 / im.height; c.save(); c.translate(36, y + 8); c.scale(-1, 1); c.drawImage(im, -im.width * k / 2, -26, im.width * k, 26); c.restore(); }
-      text(F()[o.k]?.name || o.k, 54, y + 2, { px: 14, w: 900 }); text(`×${o.n}`, 162, y + 2, { px: 14, align: 'right', col: INK2, w: 900 });
-      const wk = F()[o.k]?.weak?.[0]; if (wk) text(`弱${ELEM[wk][0]}`, 54, y + 18, { px: 12, col: TEAL, w: 900 }); });
-    if (NW.boss) stamp('主管', 140, 272, { px: 14 }); }
-  // Vivi 視訊
-  const vy = 300; c.fillStyle = '#1a0f08'; c.fillRect(10, vy, 164, 280); c.fillStyle = '#3b2d4a'; c.fillRect(14, vy + 26, 156, 156);
-  c.fillStyle = '#c8554a'; c.fillRect(20, vy + 9, 8, 8); text('視訊會議　Vivi', 34, vy + 18, { px: 13, col: '#d9c7a0', w: 700 });
-  const bv = IMG.bust_vivi; if (bv) { c.save(); c.beginPath(); c.rect(14, vy + 26, 156, 156); c.clip(); const k = 300 / bv.height, talk = VIEW.talk && VIEW.talk.t < 2.5; c.drawImage(bv, 92 - bv.width * k / 2, vy + 18 + (talk ? Math.sin(t * 18) * .8 : 0), bv.width * k, bv.height * k); c.restore(); }
-  c.fillStyle = 'rgba(255,255,255,.04)'; for (let yy = vy + 26; yy < vy + 182; yy += 3) c.fillRect(14, yy, 156, 1);
-  paper(14, vy + 190, 156, 84, {});
-  if (VIEW.talk) { VIEW.talk.t += dt; wrap(c, VIEW.talk.s.slice(0, Math.floor(VIEW.talk.t * 24)), 22, vy + 214, 140, 20, { px: 15 }); }
-  // 上緣資訊
-  wood(MX, 0, MW, MY);
+  // 左上：今日議程（波次、下班底氣）
+  paper(8, 6, 236, 74, { clip: true });
+  text(`第 ${Math.max(1, s.wave)} 波`, 22, 44, { px: 28, fam: SERIF, w: 900 }); text(`／${D.WAVES.length}`, 122, 44, { px: 15, col: INK2, w: 700 });
+  const next = s.wave < D.WAVES.length && s.wave > 0 ? Math.ceil(Math.max(0, s.waveT)) : 0;
+  if (next) text(`下一波 ${next} 秒`, 232, 40, { px: 13, align: 'right', col: INK2, w: 700 });
+  const low = s.lives <= s.livesMax * .3;
+  text('下班底氣', 22, 68, { px: 14, col: INK2, w: 900 }); bar(88, 58, 104, 11, s.lives / s.livesMax, low ? '#d24a3a' : '#c8554a'); text(`${s.lives}`, 232, 70, { px: 17, align: 'right', col: low ? RED : INK, w: 900 });
+  // 左邊：Vivi 視訊
+  const vx = 8, vy = 90, vw = 176, vh = 196;
+  c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(vx + 3, vy + 5, vw, vh); c.fillStyle = pats().WOOD_D; c.fillRect(vx, vy, vw, vh); c.strokeStyle = '#1a0f08'; c.lineWidth = 2; c.strokeRect(vx + 1, vy + 1, vw - 2, vh - 2);
+  c.fillStyle = '#3b2d4a'; c.fillRect(vx + 6, vy + 24, vw - 12, 116);
+  c.fillStyle = Math.floor(t * 2) % 2 ? '#c8554a' : '#7a2a22'; c.fillRect(vx + 10, vy + 9, 8, 8); text('視訊會議　Vivi', vx + 24, vy + 18, { px: 13, col: '#d9c7a0', w: 700 });
+  const bv = IMG.bust_vivi; if (bv) { c.save(); c.beginPath(); c.rect(vx + 6, vy + 24, vw - 12, 116); c.clip(); const k = 230 / bv.height, talk = VIEW.talk && VIEW.talk.t < 2.5; c.drawImage(bv, vx + vw / 2 - bv.width * k / 2, vy + 20 + (talk ? Math.sin(t * 18) * .8 : 0), bv.width * k, bv.height * k); c.restore(); }
+  c.fillStyle = 'rgba(255,255,255,.05)'; for (let yy = vy + 24; yy < vy + 140; yy += 3) c.fillRect(vx + 6, yy, vw - 12, 1);
+  c.fillStyle = pats().PAPER; c.fillRect(vx + 6, vy + 144, vw - 12, vh - 150);
+  if (VIEW.talk) { VIEW.talk.t += dt; wrap(c, VIEW.talk.s.slice(0, Math.floor(VIEW.talk.t * 24)), vx + 12, vy + 162, vw - 24, 18, { px: 14 }); }
+  // 左邊：下一波敵情
+  const NW = D.WAVES[s.wave];
+  if (NW) { const kinds = []; NW.groups.forEach(g => { const o = kinds.find(z => z.k === g.kind); o ? o.n += g.n : kinds.push({ k: g.kind, n: g.n }); });
+    const ky = 296, kh = 30 + Math.min(3, kinds.length) * 32; paper(8, ky, 176, kh, { old: true });
+    text('下一波敵情', 18, ky + 20, { px: 13, col: INK2, w: 900 }); if (NW.boss) stamp('主管', 150, ky + 16, { px: 12 });
+    kinds.slice(0, 3).forEach((o, j) => { const y = ky + 46 + j * 32, im = IMG['foe_' + o.k]; if (im) { const k = 26 / im.height; c.save(); c.translate(30, y + 6); c.scale(-1, 1); c.drawImage(im, -im.width * k / 2, -26, im.width * k, 26); c.restore(); }
+      text(F()[o.k]?.name || o.k, 48, y - 2, { px: 14, w: 900 }); text(`×${o.n}`, 176, y - 2, { px: 14, align: 'right', col: INK2, w: 900 });
+      const wk = F()[o.k]?.weak?.[0]; if (wk) text(`弱${ELEM[wk][0]}`, 48, y + 13, { px: 11, col: TEAL, w: 900 }); }); }
+  // 上緣：資源（木牌）＋右上按鈕
+  const rx0 = 256; wood(rx0, 8, 420, 46);
   const resK = Math.min(1, s.res / Math.max(1, s.sumCost));
-  text('人力額度', MX + 16, 31, { px: 15, col: '#d9c7a0', w: 700 }); text(String(Math.floor(s.res)), MX + 92, 34, { px: 26, col: resK >= 1 ? GOLD : CREAM, w: 900 });
-  text('部門預算', MX + 190, 31, { px: 15, col: '#d9c7a0', w: 700 }); text(String(s.coin ?? 0), MX + 266, 34, { px: 22, col: CREAM, w: 900 });
-  text('擊倒', MX + 340, 31, { px: 15, col: '#d9c7a0', w: 700 }); text(String(s.kills), MX + 380, 34, { px: 22, col: CREAM, w: 900 });
+  text('人力額度', rx0 + 14, 37, { px: 14, col: '#d9c7a0', w: 700 }); text(String(Math.floor(s.res)), rx0 + 86, 40, { px: 25, col: resK >= 1 ? GOLD : CREAM, w: 900, stroke: '#1a0f08', sw: 3 });
+  text('部門預算', rx0 + 166, 37, { px: 14, col: '#d9c7a0', w: 700 }); text(String(s.coin ?? 0), rx0 + 238, 40, { px: 21, col: CREAM, w: 900 });
+  text('擊倒', rx0 + 300, 37, { px: 14, col: '#d9c7a0', w: 700 }); text(String(s.kills), rx0 + 340, 40, { px: 21, col: CREAM, w: 900 });
   const boss = s.foes.find(f => f.boss);
-  if (boss) { text(F()[boss.kind]?.name || '', MX + 470, 31, { px: 16, col: '#ffd0c4', fam: SERIF, w: 900 }); bar(MX + 590, 16, 260, 14, boss.hp / boss.max, '#c8554a'); if (boss.guard) stamp('減傷', MX + 880, 24, { px: 13, col: '#e8e4d8' }); if (boss.broken) stamp('理虧', MX + 880, 24, { px: 13 }); }
-  const bx = W - 270; for (const [i, k, lab] of [[0, 'speed', `×${G.speed}`], [1, 'pause', G.paused ? '繼續' : '暫停'], [2, 'mute', G.mute ? '靜音' : '聲音']]) { button(bx + i * 88, 4, 82, 40, lab, { px: 18, down: VIEW.down === k }); zone(bx + i * 88, 0, 82, 48, k); }
-  // 底部指令帶
-  wood(MX, MY + MH, MW, H - MY - MH, { studs: false });
-  const by = MY + MH + 8, can = C.canSummon(s);
-  button(MX + 12, by, 156, 84, '緊急調派', { sub: `人力 ${s.sumCost}`, hot: can, off: !can, px: 25, down: VIEW.down === 'summon' }); zone(MX + 12, by, 156, 84, 'summon');
-  if (VIEW.summonT > 0) VIEW.summonT -= dt;
+  if (boss) { const bx0 = 690; wood(bx0, 8, 300, 46); text(F()[boss.kind]?.name || '', bx0 + 12, 30, { px: 14, col: '#ffd0c4', fam: SERIF, w: 900 }); bar(bx0 + 12, 37, 276, 9, boss.hp / boss.max, '#c8554a'); if (boss.guard) stamp('減傷', bx0 + 262, 24, { px: 12, col: '#e8e4d8' }); if (boss.broken) stamp('理虧', bx0 + 262, 24, { px: 12 }); }
+  const bx = W - 258; for (const [i, k, lab] of [[0, 'speed', `×${G.speed}`], [1, 'pause', G.paused ? '繼續' : '暫停'], [2, 'mute', G.mute ? '靜音' : '聲音']]) { button(bx + i * 84, 8, 78, 46, lab, { px: 18, down: VIEW.down === k }); zone(bx + i * 84, 4, 78, 54, k); }
+  // 底部指令列
+  const by = 490, can = C.canSummon(s);
+  button(200, by, 160, 92, '緊急調派', { sub: `人力 ${s.sumCost}`, hot: can, off: !can, px: 26, down: VIEW.down === 'summon' }); zone(200, by, 160, 92, 'summon');
   // 報到中
-  paper(MX + 178, by, 100, 84, { old: !s.pending });
-  text('報到中', MX + 228, by + 18, { px: 13, align: 'center', col: INK2, w: 900 });
-  if (s.pending) { c.save(); c.beginPath(); c.rect(MX + 182, by + 22, 92, 58); c.clip(); drawHero(c, s.pending.id, MX + 228, by + 84, { t, sc: 1 }); c.restore(); text(T()[s.pending.id]?.name || '', MX + 228, by + 80, { px: 14, align: 'center', w: 900, stroke: CREAM, sw: 3 }); if (C.discard) { button(MX + 284, by + 46, 74, 38, '轉派', { px: 16 }); zone(MX + 284, by + 46, 74, 38, 'discard'); } }
-  else text('—', MX + 228, by + 58, { px: 22, align: 'center', col: '#8a7d66' });
+  paper(370, by, 108, 92, { old: !s.pending });
+  text('報到中', 424, by + 18, { px: 13, align: 'center', col: INK2, w: 900 });
+  if (s.pending) { c.save(); c.beginPath(); c.rect(374, by + 22, 100, 66); c.clip(); drawHero(c, s.pending.id, 424, by + 86, { t, sc: 1 }); c.restore(); text(T()[s.pending.id]?.name || '', 424, by + 86, { px: 14, align: 'center', w: 900, stroke: CREAM, sw: 3 }); if (C.discard) { button(374, by - 40, 100, 36, '轉派', { px: 16 }); zone(374, by - 40, 100, 36, 'discard'); } }
+  else text('—', 424, by + 62, { px: 22, align: 'center', col: '#8a7d66' });
   // 選中同事的議程紙
-  const ix = MX + 368, iw = 400; paper(ix, by, iw, 84, { lines: true });
+  const ix = 488, iw = 400; paper(ix, by, iw, 92, { lines: true });
   const sel = G.sel >= 0 && s.slots[G.sel] && s.slots[G.sel].tw;
   if (sel) {
     const Dt = T()[sel.id] || {}, el = ELEM[Dt.elem] || ['', '#999'];
-    text(`${Dt.name || sel.id}`, ix + 14, by + 28, { px: 22, fam: SERIF, w: 900 }); font(22, 900, SERIF); const nw = c.measureText(Dt.name || '').width;
-    text(`${Dt.job || ''}　職級 ${ROMAN[sel.lv]}`, ix + 22 + nw, by + 27, { px: 14, col: INK2, w: 700 });
+    text(`${Dt.name || sel.id}`, ix + 14, by + 30, { px: 22, fam: SERIF, w: 900 }); font(22, 900, SERIF); const nw = c.measureText(Dt.name || '').width;
+    text(`${Dt.job || ''}　職級 ${ROMAN[sel.lv]}`, ix + 22 + nw, by + 29, { px: 14, col: INK2, w: 700 });
     c.fillStyle = el[1]; c.fillRect(ix + iw - 44, by + 10, 30, 22); text(el[0], ix + iw - 29, by + 27, { px: 16, align: 'center', col: '#1a0f08', w: 900 });
-    text(Dt.note || KIND_NOTE[Dt.kind] || '', ix + 14, by + 52, { px: 14, col: INK, w: 700 });
-    text(Dt.dmg ? `傷害 ${Math.round(Dt.dmg * C.lvK(sel.lv))}　每 ${Dt.rate} 秒　射程 ${Dt.range}` : '', ix + 14, by + 74, { px: 13, col: INK2, w: 700 });
-    button(ix + iw - 92, by + 40, 82, 40, '轉派', { px: 16, sub: null }); zone(ix + iw - 92, by + 40, 82, 40, 'sell');
+    text(Dt.note || KIND_NOTE[Dt.kind] || '', ix + 14, by + 56, { px: 14, col: INK, w: 700 });
+    text(Dt.dmg ? `傷害 ${Math.round(Dt.dmg * C.lvK(sel.lv))}　每 ${Dt.rate} 秒　射程 ${Dt.range}` : '', ix + 14, by + 80, { px: 13, col: INK2, w: 700 });
+    button(ix + iw - 92, by + 44, 82, 42, '轉派', { px: 16 }); zone(ix + iw - 92, by + 44, 82, 42, 'sell');
   } else {
-    text(s.pending ? '點一個空工位讓他上工' : '點同事看資料', ix + 14, by + 30, { px: 18, w: 900 });
-    text('同名、同職級的兩位拖到一起＝職級核定（升級）', ix + 14, by + 56, { px: 14, col: INK2, w: 700 });
-    text('點工位外的地方取消選取', ix + 14, by + 76, { px: 13, col: '#8a7d66', w: 700 });
+    text(s.pending ? '點一個空工位讓他上工' : '點同事看資料', ix + 14, by + 32, { px: 18, w: 900 });
+    text('同名、同職級的兩位拖到一起＝職級核定（升級）', ix + 14, by + 58, { px: 14, col: INK2, w: 700 });
+    text('點空地取消選取', ix + 14, by + 80, { px: 13, col: '#8a7d66', w: 700 });
   }
   // 氣勢與主動技
-  const rx = MX + 780, rw = MW - 792; paper(rx, by, rw, 84, { old: true });
+  const rx = 898, rw = W - rx - 8; paper(rx, by, rw, 92, { old: true });
   text('氣勢', rx + 12, by + 22, { px: 14, col: INK2, w: 900 }); bar(rx + 52, by + 11, rw - 66, 12, (s.momentum || 0) / 100, GOLD, { ticks: [.6] });
-  const UN = D.UNITES || [];
-  if (UN.length && C.useUnite) UN.slice(0, 2).forEach((u, j) => { const ok = C.canUnite ? C.canUnite(s, u.key) : (s.momentum >= (u.cost || 60)); const bw = (rw - 30) / 3; button(rx + 8 + j * (bw + 6), by + 32, bw, 46, u.name, { px: 13, off: !ok, hot: ok, sub: (u.who || []).map(w => T()[w]?.name).join('＋') }); zone(rx + 8 + j * (bw + 6), by + 32, bw, 46, 'unite:' + u.key); });
-  else text('合體技（規則接好後開放）', rx + 12, by + 56, { px: 13, col: '#8a7d66', w: 700 });
-  if (C.useSuper) { const bw = (rw - 30) / 3, ok = (s.momentum || 0) >= 100 && G.sel >= 0; button(rx + rw - bw - 8, by + 32, bw, 46, '超級化', { px: 15, off: !ok, hot: ok, sub: G.sel >= 0 ? '' : '先選人' }); zone(rx + rw - bw - 8, by + 32, bw, 46, 'super'); }
-  if (G.paused) { c.fillStyle = 'rgba(20,13,8,.55)'; c.fillRect(MX, MY, MW, MH); stamp('暫停中', MX + MW / 2, MY + MH - 60, { px: 30, col: CREAM }); }
+  const UN = D.UNITES || [], bw = (rw - 30) / 3;
+  if (UN.length && C.useUnite) UN.slice(0, 2).forEach((u, j) => { const ok = C.canUnite ? C.canUnite(s, u.key) : (s.momentum >= (u.cost || 60)); button(rx + 8 + j * (bw + 6), by + 34, bw, 52, u.name, { px: 13, off: !ok, hot: ok, sub: (u.who || []).map(w => T()[w]?.name).join('＋') }); zone(rx + 8 + j * (bw + 6), by + 34, bw, 52, 'unite:' + u.key); });
+  else text('合體技（規則接好後開放）', rx + 12, by + 62, { px: 13, col: '#8a7d66', w: 700 });
+  if (C.useSuper) { const ok = (s.momentum || 0) >= 100 && G.sel >= 0; button(rx + rw - bw - 8, by + 34, bw, 52, '超級化', { px: 15, off: !ok, hot: ok, sub: G.sel >= 0 ? '' : '先選人' }); zone(rx + rw - bw - 8, by + 34, bw, 52, 'super'); }
+  if (G.paused) { c.fillStyle = 'rgba(20,13,8,.55)'; c.fillRect(0, 60, W, 425); stamp('暫停中', W / 2, 420, { px: 30, col: CREAM }); }
   G.zones = VIEW.zones;
 }
 function wrap(c, s, x, y, w, lh, o) { font(o.px, 700); let line = '', yy = y; for (const ch of s) { if (c.measureText(line + ch).width > w) { text(line, x, yy, o); line = ch; yy += lh; } else line += ch; } if (line) text(line, x, yy, o); }
