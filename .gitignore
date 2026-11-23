@@ -1,0 +1,6 @@
+art/raw/
+design/ref_screenshot.jpg
+.DS_Store
+node_modules/
+out/
+*.log
