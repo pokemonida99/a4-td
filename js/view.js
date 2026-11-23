@@ -267,9 +267,9 @@ function drawAim(c, s, u, t) {
     c.fillStyle = `rgba(127,212,240,${a * .4})`; c.strokeStyle = '#b083f0'; c.lineWidth = 4; c.beginPath(); c.ellipse(MX + cx, MY + cy, u.radius, u.radius / 1.25, 0, 0, 7); c.fill(); c.stroke(); icon(c, 'reticle', MX + cx, MY + cy, 44); }
   icon(c, 'finger', 640, 448 - Math.abs(Math.sin(t * 5)) * 8, 40);
 }
-function skillFace(c, tw, sk, x, y, s, ok) {
+function skillFace(c, tw, sk, x, y, s, ok, corner) {
   const rd = routeData(tw); c.fillStyle = '#1a0f08'; c.beginPath(); c.arc(x, y, s / 2, 0, 7); c.fill(); ricon(c, rd?.icon, x, y, s * .8);
-  const cd = tw.skillCd || 0, tot = sk?.cd || 40; if (cd > 0) { c.fillStyle = 'rgba(20,13,8,.6)'; c.beginPath(); c.moveTo(x, y); c.arc(x, y, s / 2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (cd / tot)); c.closePath(); c.fill(); num(Math.ceil(cd), x, y + 8, 20, { align: 'center' }); }
+  const cd = tw.skillCd || 0, tot = sk?.cd || 40; if (cd > 0) { c.fillStyle = 'rgba(20,13,8,.55)'; c.beginPath(); c.moveTo(x, y); c.arc(x, y, s / 2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (cd / tot)); c.closePath(); c.fill(); if (corner) corner(x + s * .55, y - s * .4, Math.ceil(cd)); else num(Math.ceil(cd), x, y + 8, 20, { align: 'center' }); }
   else { c.strokeStyle = `rgba(242,201,76,${.6 + .4 * Math.sin(performance.now() / 150)})`; c.lineWidth = 3; c.beginPath(); c.arc(x, y, s / 2 + 2, 0, 7); c.stroke(); }
   head(c, tw.id, x + s * .42, y + s * .34, s * .42);
 }
@@ -409,15 +409,20 @@ export function drawHud(c, G, dt) {
     c.globalAlpha = ok ? 1 : .5; icon(c, 'pick', 236, by - 39, 40); c.globalAlpha = 1; icon(c, 'coin', 282, by - 39, 22); text(String(pc), 296, by - 31, { px: 20, col: ok ? INK : RED, w: 900 }); zone(198, by - 76, 164, 72, 'pick');
     if (G.pickOpen) { const team = s.team || D.DEFAULT_TEAM, px = 200, py = by - 156; paper(px - 6, py - 6, team.length * 74 + 12, 82, {}); team.forEach((id, j) => { head(c, id, px + 37 + j * 74, py + 35, 62); zone(px + j * 74, py - 2, 74, 74, 'pick:' + id); }); }
   } else G.pickOpen = false;
-  if (pend) { c.save(); c.beginPath(); c.rect(374, by + 4, 100, 84); c.clip(); drawHero(c, s.pending.id, 428, by + 88, { t, sc: .9 }); c.restore();
-    if (C.discard) { button(374, by - 72, 100, 66, '', { down: VIEW.down === 'discard' }); icon(c, 'refund', 402, by - 39, 34); text(`+${Math.round((s.pending.paid ?? s.sumCost) * (D.RULE?.discardBack ?? .6))}`, 422, by - 30, { px: 20, w: 900 }); zone(372, by - 76, 104, 72, 'discard'); } }
-  // 選中同事
-  const ix = 488, iw = 400; paper(ix, by, iw, 92, {});
-  const sel = G.sel >= 0 && s.slots[G.sel] && s.slots[G.sel].tw;
+  if (pend) { c.save(); c.beginPath(); c.rect(374, by + 4, 100, 84); c.clip(); drawHero(c, s.pending.id, 428, by + 88, { t, sc: .9 }); c.restore(); }
+  // 選中同事：資料卡；需要選路線時，資料卡直接換成兩張路線卡（不浮在走道上，v0.3 巡檢 V1）
+  const ix = 488, iw = 400, sel = G.sel >= 0 && s.slots[G.sel] && s.slots[G.sel].tw, R = sel && D.ROUTES?.[sel.id], needR = !!(sel && R && C.needRoute && C.needRoute(s, G.sel));
+  if (needR) {
+    ['a', 'b'].forEach((k, j) => { const r = R[k], cx = ix + j * 202, cy = by; button(cx, cy, 198, 92, '', { hot: true, down: VIEW.down === 'route:' + k });
+      c.fillStyle = '#1a0f08'; c.beginPath(); c.arc(cx + 34, cy + 38, 26, 0, 7); c.fill(); ricon(c, r.icon, cx + 34, cy + 38, 44); text(k.toUpperCase(), cx + 34, cy + 82, { px: 15, align: 'center', col: TEAL, w: 900 });
+      text(r.name, cx + 66, cy + 27, { px: 19, fam: SERIF, w: 900 }); wrap(c, r.note, cx + 66, cy + 49, 124, 18, { px: 15, col: INK2 });
+      if (r.skill) { icon(c, 'super', cx + 74, cy + 78, 16); text(r.skill.name, cx + 86, cy + 84, { px: 14, col: TEAL, w: 900 }); }      // III 會拿到的技能
+      zone(cx, cy, 198, 92, 'route:' + k); });
+  } else { paper(ix, by, iw, 92, {});
   if (sel) {
     const Dt = T()[sel.id] || {};
     head(c, sel.id, ix + 42, by + 46, 64);
-    const tic = IMG['ic_' + TRAIT_IC[sel.id]]; if (tic) { c.fillStyle = '#1a0f08'; c.beginPath(); c.arc(ix + 66, by + 70, 17, 0, 7); c.fill(); c.drawImage(tic, ix + 51, by + 55, 30, 30); zone(ix + 4, by + 4, 92, 88, 'trait'); }      // 整顆頭像都能點      // 特色圖示：點了說明
+    const tic = IMG['ic_' + TRAIT_IC[sel.id]]; if (tic) { c.fillStyle = '#1a0f08'; c.beginPath(); c.arc(ix + 66, by + 70, 17, 0, 7); c.fill(); c.drawImage(tic, ix + 51, by + 55, 30, 30); zone(ix + 4, by + 4, 92, 88, 'trait'); }      // 特色圖示：整顆頭像都能點
     text(Dt.name || sel.id, ix + 84, by + 30, { px: 20, fam: SERIF, w: 900 }); font(20, 900, SERIF); const nw = c.measureText(Dt.name || '').width;
     icon(c, ELK[Dt.elem], ix + 98 + nw, by + 23, 26, (ELEM[Dt.elem] || [''])[0]); rankGems(c, ix + 152 + nw, by + 24, sel.lv);
     const rd = routeData(sel); if (rd) { c.fillStyle = '#1a0f08'; c.beginPath(); c.arc(ix + 18, by + 20, 17, 0, 7); c.fill(); ricon(c, rd.icon, ix + 18, by + 20, 28); }      // 路線徽章：貼在頭像左上
@@ -427,50 +432,44 @@ export function drawHud(c, G, dt) {
       icon(c, 'range', ix + 256, by + 66, 26); text(String(Math.round(rr)), ix + 272, by + 74, { px: 18, w: 900 }); }
     if (C.moveCost) { const mc = C.moveCost(s), mx = ix + 258; icon(c, 'move', mx, by + 22, 24); if (mc) { icon(c, 'coin', mx + 22, by + 22, 18); text(String(mc), mx + 32, by + 29, { px: 15, col: mc > (s.coin || 0) ? RED : INK, w: 900 }); } else text('0', mx + 16, by + 29, { px: 16, col: TEAL, w: 900 }); }
     button(ix + iw - 72, by + 8, 66, 76, '', { down: VIEW.down === 'sell' }); icon(c, 'refund', ix + iw - 39, by + 36, 36); text(`+${(D.RULE?.sellBack || [5, 10, 20])[sel.lv - 1]}`, ix + iw - 39, by + 74, { px: 17, align: 'center', w: 900 }); zone(ix + iw - 74, by + 4, 70, 84, 'sell');
-    const R = D.ROUTES?.[sel.id];
-    if (R && C.needRoute && C.needRoute(s, G.sel)) {      // 升到 II、還沒選路線：兩張路線卡（浮在資料卡上方）
-      ['a', 'b'].forEach((k, j) => { const r = R[k], cx = ix + j * 202, cy = by - 112; button(cx, cy, 196, 104, '', { hot: true, down: VIEW.down === 'route:' + k });
-        c.fillStyle = '#1a0f08'; c.beginPath(); c.arc(cx + 38, cy + 44, 28, 0, 7); c.fill(); ricon(c, r.icon, cx + 38, cy + 44, 48);
-        text(r.name, cx + 76, cy + 38, { px: 19, fam: SERIF, w: 900 }); wrap(c, r.note, cx + 76, cy + 62, 112, 18, { px: 14, col: INK2 }); text(k.toUpperCase(), cx + 180, cy + 26, { px: 16, align: 'right', col: TEAL, w: 900 });
-        zone(cx, cy, 196, 104, 'route:' + k); });
-      if (Math.floor(t * 2) % 2) icon(c, 'finger', ix + 200, by - 130, 34);
-    } else if (R && sel.lv >= 2 && sel.route && C.canReroute && s.phase === 'break') {      // 波間：改走另一條路線
-      const ok = C.canReroute(s, G.sel), ox = R[sel.route === 'a' ? 'b' : 'a'], rx2 = ix + iw - 240, ry = by - 78; button(rx2, ry, 98, 72, '', { off: !ok, down: VIEW.down === 'reroute' });
-      c.globalAlpha = ok ? 1 : .5; icon(c, 'reroute', rx2 + 26, ry + 26, 30); ricon(c, ox.icon, rx2 + 64, ry + 26, 30); c.globalAlpha = 1; icon(c, 'coin', rx2 + 30, ry + 56, 16); text(String(D.RULE?.rerouteCost ?? 12), rx2 + 40, ry + 62, { px: 15, w: 900 }); zone(rx2 - 2, ry - 2, 102, 76, 'reroute');
-    }
-    if (sel.lv >= 3 && C.skillOf && C.skillOf(sel)) {      // III 主動技能（浮在資料卡左上）
-      const sk = C.skillOf(sel), ok = C.canSkill(s, G.sel), sx = ix, sy = by - 78; button(sx, sy, 160, 72, '', { hot: ok, off: !ok, down: VIEW.down === 'skill' || G.aimSkill === G.sel });
-      skillFace(c, sel, sk, sx + 36, sy + 36, 50, ok); text(sk.name, sx + 68, sy + 42, { px: 16, fam: SERIF, w: 900, col: ok ? INK : '#8a7d66' }); zone(sx - 2, sy - 2, 164, 76, 'skill');
-    }
-    if (C.upgradeCost && !(R && C.needRoute && C.needRoute(s, G.sel))) { const uc = C.upgradeCost(s, G.sel), can = C.canUpgrade(s, G.sel), ux = ix + iw - 136, uy = by - 78;      // 升職：花預算直接升一級（浮在資料卡右上）
-      button(ux, uy, 130, 72, '', { hot: can, off: !can, down: VIEW.down === 'upgrade' }); c.globalAlpha = can ? 1 : .5; icon(c, 'promote', ux + 36, uy + 36, 46, '↑'); c.globalAlpha = 1;
-      if (isFinite(uc)) { icon(c, 'coin', ux + 76, uy + 36, 22); text(String(uc), ux + 90, uy + 44, { px: 20, col: (s.coin ?? 0) >= uc ? INK : RED, w: 900 }); } else rankGems(c, ux + 92, uy + 36, sel.lv);
-      zone(ux - 2, uy - 2, 134, 76, 'upgrade'); }
   } else {      // 沒選人：圖解「同名同級拖在一起＝升級」
     const demo = s.slots.find(x => x.tw)?.tw.id || 'kui';
     head(c, demo, ix + 50, by + 46, 54); text('+', ix + 92, by + 56, { px: 30, w: 900, col: INK2 }); head(c, demo, ix + 134, by + 46, 54);
     text('=', ix + 172, by + 56, { px: 30, w: 900, col: INK2 }); icon(c, 'promote', ix + 220, by + 46, 54, '↑');
     if (pend) { icon(c, 'inbox', ix + 300, by + 46, 36); text('→', ix + 326, by + 56, { px: 26, w: 900, col: INK2 }); c.strokeStyle = TEAL; c.lineWidth = 3; c.setLineDash([5, 4]); c.strokeRect(ix + 354, by + 28, 34, 36); c.setLineDash([]); }
-  }
+  } }
   if (VIEW.tip && sel) { VIEW.tip.t += dt; if (VIEW.tip.t > 3) VIEW.tip = null; else { font(17, 700); const tw2 = c.measureText(VIEW.tip.s).width + 28; paper(ix, by - 50, tw2, 42, {}); text(VIEW.tip.s, ix + 14, by - 22, { px: 17, w: 700 }); } } else VIEW.tip = null;
-  // 氣勢與主動技（按鈕 64 高；合體技缺誰就把誰變灰；氣勢不夠顯示要多少）
+  // 右下面板：選人時＝這位的動作（技能、改路線、升職）；報到中有人＝轉派；平常＝合體技＋技能快捷鍵
   const rx = 898, rw = W - rx - 8; wood(rx, by, rw, 92);
-  icon(c, 'mom', rx + 18, by + 12, 22); bar(rx + 34, by + 7, rw - 46, 10, (s.momentum || 0) / 100, GOLD, { ticks: [.6] });
-  const UN = s.unites || D.UNITES || [], superOn = C.useSuper && D.RULE?.superOn !== false, bw = superOn ? (rw - 28) / 3 : (rw - 35) / 4, onField = id => s.slots.some(q => q.tw && q.tw.id === id);
-  UN.slice(0, 2).forEach((u, j) => { const ok = C.canUnite ? !!C.canUnite(s, u.key) : (s.momentum >= (u.cost || 60)), cd = (s.cds || {})[u.key] || 0, bx1 = rx + 7 + j * (bw + 7);
-    button(bx1, by + 22, bw, 64, '', { off: !ok, hot: ok, down: VIEW.down === 'unite:' + u.key || G.aim === u.key });
-    u.who.forEach((w, k) => { const here = onField(w); c.save(); if (!here) c.filter = 'grayscale(1) brightness(.6)'; c.globalAlpha = ok || here ? 1 : .6; head(c, w, bx1 + bw / 2 + (k ? 15 : -15), by + 50, 34); c.restore(); });
-    if (cd > 0) num(Math.ceil(cd), bx1 + bw / 2, by + 60, 22, { align: 'center' });
-    else if (!ok && u.who.every(onField) && (s.momentum || 0) < (u.cost || 60)) { icon(c, 'mom', bx1 + 16, by + 76, 16); text(String(u.cost || 60), bx1 + 26, by + 81, { px: 13, col: '#8a7d66', w: 900 }); }
-    zone(bx1, by + 20, bw, 70, 'unite:' + u.key); });
-  if (!superOn) lv3List(s).slice(0, 2).forEach((q, j) => {      // 技能快捷鍵：最近升到 III 的兩位
-    const bx2 = rx + 7 + (2 + j) * (bw + 7), sk = C.skillOf(q.tw), ok = C.canSkill(s, q.i); button(bx2, by + 22, bw, 64, '', { hot: ok, off: !ok, down: VIEW.down === 'qs:' + q.i || G.aimSkill === q.i });
-    skillFace(c, q.tw, sk, bx2 + bw / 2, by + 54, 46, ok); zone(bx2, by + 20, bw, 70, 'qs:' + q.i); });
-  if (superOn) { const full = (s.momentum || 0) >= (D.RULE?.superCost || 100), bx2 = rx + rw - bw - 7, on = G.pickSuper; button(bx2, by + 22, bw, 64, '', { off: !full, hot: full, down: VIEW.down === 'super' || on });
-    c.globalAlpha = full ? 1 : .5; icon(c, 'super', bx2 + bw / 2, by + 52, on ? 50 : 42, '★'); c.globalAlpha = 1; if (on) icon(c, 'finger', bx2 + bw / 2, by - 10 - Math.abs(Math.sin(t * 5)) * 8, 34); zone(bx2, by + 20, bw, 70, 'super'); }
-  if (VIEW.teach) { VIEW.teach.t += dt; if (VIEW.teach.t > 9) VIEW.teach = null; else { const trs = VIEW.teach.tr, cx = 196, cy = 404 - (trs.length - 1) * 50, k = Math.min(1, VIEW.teach.t / .25);
-    trs.forEach((tr, j) => { const y0 = cy + j * 50, xo = cx - (1 - k) * 400; paper(xo, y0, 330, 46, {}); icon(c, TRAIT_UI[tr], xo + 26, y0 + 23, 36); const [nm, ds] = TRAIT_TXT[tr] || ['', '']; text(nm, xo + 50, y0 + 30, { px: 18, fam: SERIF, w: 900 }); text(ds, xo + 100, y0 + 29, { px: 14, col: INK2, w: 700 }); });
-    zone(cx, cy, 330, trs.length * 50, 'teach'); } }
+  icon(c, 'mom', rx + 18, by + 12, 22); bar(rx + 34, by + 7, rw - 46, 10, (s.momentum || 0) / (D.RULE?.momMax || 100), GOLD, { ticks: [.6] });
+  const corner = (x, y, v) => { c.fillStyle = 'rgba(26,15,8,.85)'; c.beginPath(); c.arc(x, y, 13, 0, 7); c.fill(); text(String(v), x, y + 6, { px: 15, align: 'center', col: CREAM, w: 900 }); };      // 冷卻秒數：角落小圓，不蓋臉（V4）
+  if (sel && !needR) {
+    const acts = []; if (sel.lv >= 3 && C.skillOf && C.skillOf(sel)) acts.push('skill'); if (R && sel.route && C.canReroute && s.phase === 'break') acts.push('reroute'); if (C.upgradeCost) acts.push('upgrade');
+    const bw3 = (rw - 14 - (acts.length - 1) * 7) / Math.max(1, acts.length);
+    acts.forEach((a, j) => { const bx = rx + 7 + j * (bw3 + 7), byy = by + 22, cx = bx + bw3 / 2;
+      if (a === 'skill') { const sk = C.skillOf(sel), ok = C.canSkill(s, G.sel); button(bx, byy, bw3, 64, '', { hot: ok, off: !ok, down: VIEW.down === 'skill' || G.aimSkill === G.sel }); skillFace(c, sel, sk, cx, byy + 32, 46, ok, corner); zone(bx, byy - 2, bw3, 70, 'skill'); }
+      if (a === 'reroute') { const ok = C.canReroute(s, G.sel), ox = R[sel.route === 'a' ? 'b' : 'a']; button(bx, byy, bw3, 64, '', { off: !ok, down: VIEW.down === 'reroute' }); c.globalAlpha = ok ? 1 : .5; icon(c, 'reroute', cx - 18, byy + 26, 30); ricon(c, ox.icon, cx + 18, byy + 26, 30); c.globalAlpha = 1; icon(c, 'coin', cx - 10, byy + 52, 16); text(String(D.RULE?.rerouteCost ?? 12), cx, byy + 58, { px: 15, w: 900 }); zone(bx, byy - 2, bw3, 70, 'reroute'); }
+      if (a === 'upgrade') { const uc = C.upgradeCost(s, G.sel), can = C.canUpgrade(s, G.sel); button(bx, byy, bw3, 64, '', { hot: can, off: !can, down: VIEW.down === 'upgrade' }); c.globalAlpha = can ? 1 : .5; icon(c, 'promote', cx - (isFinite(uc) ? 22 : 0), byy + 30, 42, '↑'); c.globalAlpha = 1;
+        if (isFinite(uc)) { icon(c, 'coin', cx + 12, byy + 22, 18); text(String(uc), cx + 4, byy + 52, { px: 19, col: (s.coin ?? 0) >= uc ? INK : RED, w: 900 }); } zone(bx, byy - 2, bw3, 70, 'upgrade'); } });
+  } else {
+    const UN = s.unites || D.UNITES || [], superOn = C.useSuper && D.RULE?.superOn !== false, bw = superOn ? (rw - 28) / 3 : (rw - 35) / 4, onField = id => s.slots.some(q => q.tw && q.tw.id === id);
+    let col = 0;
+    if (pend && C.discard) { const bx = rx + 7; button(bx, by + 22, bw, 64, '', { down: VIEW.down === 'discard' }); icon(c, 'refund', bx + bw / 2, by + 44, 32); text(`+${Math.round((s.pending.paid ?? s.sumCost) * (D.RULE?.discardBack ?? .6))}`, bx + bw / 2, by + 80, { px: 17, align: 'center', w: 900 }); zone(bx, by + 20, bw, 70, 'discard'); col = 1; }
+    UN.slice(0, 2 - col).forEach((u, j) => { const ok = C.canUnite ? !!C.canUnite(s, u.key) : (s.momentum >= (u.cost || 60)), cd = (s.cds || {})[u.key] || 0, bx1 = rx + 7 + (j + col) * (bw + 7);
+      button(bx1, by + 22, bw, 64, '', { off: !ok, hot: ok, down: VIEW.down === 'unite:' + u.key || G.aim === u.key });
+      u.who.forEach((w, k) => { const here = onField(w); c.save(); if (!here) c.filter = 'grayscale(1) brightness(.6)'; c.globalAlpha = ok || here ? 1 : .6; head(c, w, bx1 + bw / 2 + (k ? 15 : -15), by + 50, 34); c.restore(); });
+      if (cd > 0) corner(bx1 + bw - 12, by + 34, Math.ceil(cd));
+      else if (!ok && u.who.every(onField) && (s.momentum || 0) < (u.cost || 60)) { icon(c, 'mom', bx1 + 16, by + 76, 16); text(String(u.cost || 60), bx1 + 26, by + 81, { px: 13, col: '#8a7d66', w: 900 }); }
+      zone(bx1, by + 20, bw, 70, 'unite:' + u.key); });
+    if (!superOn) lv3List(s).slice(0, 2).forEach((q, j) => {      // 技能快捷鍵：最近升到 III 的兩位（金框，跟合體技分開）
+      const bx2 = rx + 7 + (2 + j) * (bw + 7), sk = C.skillOf(q.tw), ok = C.canSkill(s, q.i); button(bx2, by + 22, bw, 64, '', { hot: ok, off: !ok, down: VIEW.down === 'qs:' + q.i || G.aimSkill === q.i });
+      c.strokeStyle = GOLD; c.lineWidth = 2; c.strokeRect(bx2 + 3, by + 25, bw - 6, 58); skillFace(c, q.tw, sk, bx2 + bw / 2, by + 54, 46, ok, corner); zone(bx2, by + 20, bw, 70, 'qs:' + q.i); });
+  }
+  // 新屬性教學卡：左側、地圖空地（不擋走道與按鈕）；多個屬性輪流，每個 4.5 秒；整張可點掉（V2）
+  if (VIEW.teach) { VIEW.teach.t += dt; const trs = VIEW.teach.tr, per = 4.5, idx = Math.floor(VIEW.teach.t / per);
+    if (idx >= trs.length) VIEW.teach = null; else { const tr = trs[idx], lt = VIEW.teach.t - idx * per, k = Math.min(1, lt / .25), cx = 190 - (1 - k) * 240, cy = 306;
+      paper(cx, cy, 200, 92, {}); icon(c, TRAIT_UI[tr], cx + 28, cy + 30, 40); const [nm, ds] = TRAIT_TXT[tr] || ['', '']; text(nm, cx + 56, cy + 38, { px: 21, fam: SERIF, w: 900 });
+      if (trs.length > 1) text(`${idx + 1}/${trs.length}`, cx + 190, cy + 24, { px: 13, align: 'right', col: INK2, w: 900 }); wrap(c, ds, cx + 12, cy + 64, 180, 19, { px: 16, col: INK2 }); zone(cx, cy, 200, 92, 'teach'); } }
   // 暫停：地圖變暗，暫停鍵發亮；聲音開關在這裡
   if (G.paused) { c.fillStyle = 'rgba(20,13,8,.55)'; c.fillRect(0, 84, W, 400); const dn = VIEW.down === 'mute' ? 3 : 0; button(W / 2 - 50, 250, 100, 84, '', { down: VIEW.down === 'mute' }); icon(c, G.mute ? 'snd_off' : 'snd_on', W / 2, 292 + dn, 52, '♪'); zone(W / 2 - 54, 246, 108, 92, 'mute'); }
   G.zones = VIEW.zones;
