@@ -31,7 +31,8 @@ sh.save(f'design/art/{name}.png')
 mp = Image.open('art/map/office_pixel.jpg').convert('RGB')      # 上走廊（走道中心 y=125）
 K = 2; CW = 130 * K; RH = 120 * K; WALKW = 520
 frames = []
-for t in range(32):
+NF = 24
+for t in range(NF):
     c = Image.new('RGB', (3 * CW + WALKW, RH * len(ids)), (58, 52, 46))
     for r, cid in enumerate(ids):
         m = json.load(open(f'art/q/{cid}.json')); fx, fy = m['foot']
@@ -45,8 +46,9 @@ for t in range(32):
         fr, _ = strip(cid, 'walk', 'side')
         if fr:
             im = fr[t % len(fr)].transpose(Image.FLIP_LEFT_RIGHT).resize((fr[0].width * K, fr[0].height * K), Image.NEAREST)
-            x = 3 * CW + WALKW - 40 - int(t * (WALKW + 80) / 32); fxf = fr[0].width - fx
+            x = 3 * CW + WALKW - 40 - int(t * (WALKW + 80) / NF); fxf = fr[0].width - fx
             tmp = c.crop((3 * CW, r * RH, 3 * CW + WALKW, (r + 1) * RH)); tmp.paste(im, (x - 3 * CW - fxf * K, RH - 16 - fy * K), im); c.paste(tmp, (3 * CW, r * RH))
     frames.append(c)
-frames[0].save(f'design/art/{name}.gif', save_all=True, append_images=frames[1:], duration=95, loop=0)
+frames = [f.quantize(colors=128, method=Image.Quantize.MEDIANCUT) for f in frames]
+frames[0].save(f'design/art/{name}.gif', save_all=True, append_images=frames[1:], duration=110, loop=0, optimize=True)
 print('ok', name)

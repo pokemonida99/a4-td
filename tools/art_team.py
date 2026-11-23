@@ -8,9 +8,9 @@ F = ImageFont.truetype('fonts/NotoSansTC.ttf', 24)
 def frame(cid, anim, d, i):
     m = json.load(open(f'art/q/{cid}.json')); cw, ch = m['cell']; s = Image.open(f'art/q/{cid}_{anim}_{d}.png').convert('RGBA')
     return s.crop((i * cw, 0, (i + 1) * cw, ch)), m['foot']
-S = 2; COLW = 180 * S // 2 * 2; ROWH = 160 * S // 2 * 2
-picks = [('idle', 'down', 0), ('idle', 'side', 0), ('idle', 'up', 0), ('atk', 'down', 4), ('atk', 'side', 4), ('atk', 'up', 4)]
-heads = ['待機・正面', '待機・側面', '待機・背面', '出手・正面', '出手・側面', '出手・背面']
+S = 2; COLW = 150 * S; ROWH = 150 * S
+picks = [('idle', 'down', 0), ('idle', 'dside', 0), ('idle', 'side', 0), ('idle', 'uside', 0), ('idle', 'up', 0), ('atk', 'down', 4), ('atk', 'dside', 4), ('atk', 'side', 4), ('atk', 'uside', 4), ('atk', 'up', 4)]
+heads = ['待機・正面', '待機・斜前', '待機・側面', '待機・斜後', '待機・背面', '出手・正面', '出手・斜前', '出手・側面', '出手・斜後', '出手・背面']
 mp = Image.open('art/map/office_pixel.jpg').convert('RGB'); mj = json.load(open('art/map/office.json'))
 crop = (330, 120, 1070, 400); MK = 1.5
 mpc = mp.crop(crop); mpc = mpc.resize((int(mpc.width * MK), int(mpc.height * MK)), Image.NEAREST)
@@ -25,7 +25,7 @@ for r, cid in enumerate(ids):
         sh.paste(big, (cx - fx * S, by - fy * S), big)
 # 地圖上的實際大小：每人放一個工位，前 6 格
 y0 = 50 + ROWH * len(ids); sh.paste(mpc, (10, y0))
-dirs = ['down', 'side', 'up', 'down', 'side', 'down']
+dirs = ['down', 'dside', 'side', 'uside', 'up', 'dside']
 for k, cid in enumerate(ids[:12]):
     sx, sy = mj['slots'][k % 12]
     a, d = ('idle', dirs[k % len(dirs)])

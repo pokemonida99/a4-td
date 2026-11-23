@@ -4,3 +4,6 @@ design/ref_screenshot.jpg
 node_modules/
 out/
 *.log
+design/art/raw/
+design/art/check/
+*.gif

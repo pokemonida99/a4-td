@@ -51,6 +51,7 @@ const cheat = async (why, fn, arg) => { report.cheats.push(why); await page.eval
 await shot('title', '標題畫面');
 await tapZone('start'); await wait(900);
 await shot('start', '剛開局（還沒點任何東西）');
+await cheat('開局準備時間拉長到 300 秒，讓擺放流程都在第 1 波前做完（不然提早開波按鈕會先消失）', () => { window.__game.s.waveT = 300; });
 // 2. 緊急調派 → 報到中 → 放工位
 await tapZone('summon'); await shot('pending', '按了緊急調派，報到中有人');
 let p = await st();
@@ -67,6 +68,7 @@ for (const i of [1, 2, 6, 7, 3]) { await tapZone('summon'); await tapL(...await 
 await cheat('把 1、2 號工位改成同名 I 級，測拖曳合併', () => { const s = window.__game.s; const id = s.slots[1].tw.id; s.slots[2].tw.id = id; s.slots[2].tw.lv = 1; s.slots[1].tw.lv = 1; });
 await shot('before_drag', '六人上場，1、2 號同名同級');
 await tapL(...await slotXY(1)); await shot('select', '點選一位同事（應該看到射程、資料、可合併的位置）');
+report.traitOk = await tapZone('trait'); await wait(200); await shot('trait', '點頭像右下的特色圖示（應該跳出這位同事的特色說明）'); await page.evaluate(() => { if (window.__game.sel < 0) window.__game.sel = 1; });
 await drag(await slotXY(1), await slotXY(2)); await shot('drag_merge', '把 1 號拖到 2 號＝合併');
 // 5. 調位（波間第一次免費）
 await tapL(...await slotXY(6)); await tapL(...await slotXY(10)); await shot('move', '點 6 號再點空的 10 號＝調位');
@@ -83,11 +85,19 @@ await page.evaluate(() => { const s = window.__game.s; s.pending = null; });
 for (const [i, id] of [[8, 'kui'], [9, 'zhe']]) { await tapZone('summon'); await page.evaluate(id => { window.__game.s.pending = { id, lv: 1 }; }, id); await tapL(...await slotXY(i)); }
 await page.evaluate(() => { window.__game.s.momentum = 100; }); await shot('mom_full', '氣勢 100：合體技、超級化應該亮');
 const u = await page.evaluate(() => (window.__game.s.unites || [])[0]?.key);
-if (u) { await tapZone('unite:' + u); await wait(150); await shot('unite', '按合體技（這案今天結）'); }
+if (u) {
+  await tapZone('unite:' + u); await wait(150); report.aim = await page.evaluate(() => window.__game.aim); await shot('unite_aim', '按合體技＝進入瞄準（地圖上應該亮出可選範圍）');
+  const tgt = await page.evaluate(() => { const f = window.__game.s.foes.filter(f => f.hp > 0).sort((a, b) => b.d - a.d)[0]; return f ? [f.x, f.y] : [700, 125]; });
+  const m0 = await page.evaluate(() => window.__game.s.momentum);
+  await tapL(tgt[0], Math.max(70, Math.min(480, tgt[1]))); await wait(150); await shot('unite', '點地圖上敵人那段＝發動合體技（這案今天結）');
+  report.uniteOk = await page.evaluate(m0 => window.__game.s.momentum < m0 && !window.__game.aim, m0);
+}
 // 9. 超級化
 await page.evaluate(() => { window.__game.s.momentum = 100; });
-await tapZone('super'); await shot('super_nosel', '沒選人時按超級化（應該提示先選人）');
-await tapL(...await slotXY(2)); await tapZone('super'); await wait(300); await shot('super', '選人後按超級化');
+await page.evaluate(() => { window.__game.sel = -1; });
+await tapZone('super'); await shot('super_pick', '沒選人時按星星：進入「點一位同事」模式（同事頭上應該冒星星）');
+await tapL(...await slotXY(2)); await wait(300); await shot('super', '再點 2 號同事＝發動超級化');
+report.superOk = await page.evaluate(() => (window.__game.s.slots[2].tw || {}).super > 0);
 // 10. 甩鍋課長
 await cheat('跳到第 5 波（頭目甩鍋課長）並補滿人', () => { const s = window.__game.s; s.foes.length = 0; s.spawnQ.length = 0; s.wave = 4; s.phase = 'break'; s.waveT = .5; });
 await wait(4500); await shot('boss_chief', '甩鍋課長出場');
