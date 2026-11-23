@@ -2,7 +2,7 @@
 // 地圖座標（core 用的）是 1096×442，畫到畫面上要加 (MX, MY)。
 import * as C from './core.js';
 import * as D from './data.js';
-import { IMG, Q, sfx, bgm } from './assets.js';
+import { IMG, Q, sfx, bgm, TRAIT_IC } from './assets.js';
 import { W, H, INK, INK2, CREAM, TEAL, RED, BRASS, GOLD, SANS, SERIF, ELEM, rnd, pats, font, text, wood, paper, stamp, button, bar, clip, stud } from './skin.js';
 
 export const MX = 0, MY = 0, MW = 1280, MH = 590;      // 地圖鋪滿全畫面，介面浮在上面（11/23 使用者要照參考圖的豐富度）
@@ -21,7 +21,7 @@ const LINES = {
   wave: ['又來一批，別讓他們碰到打卡機。', '下一波。動作快一點。', '我看著呢，別讓我失望。', '人力夠了就「緊急調派」，別省。'],
   boss_chief: ['甩鍋課長來了。等他把鍋丟出去再打。'], boss_boss: ['總經理親自來了……全力擋下，這是命令。'], boss: ['主管級的來了，集中火力。'],
   leak: ['有工作漏進來了！', '打卡機那邊在叫了，注意！'], merge: ['職級核定，通過。', '升職了？那就拿出升職的樣子。'],
-  low: ['底氣快見底了，給我撐住。'], complain: ['客訴成立了……底氣被扣了。下次一定要打斷他！'], charge: ['總經理在攤客訴長卷！快打斷他！'], win: ['……做得不錯。今天准你們準時下班。'], lose: ['全員留下加班。明天早會檢討。'],
+  low: ['底氣快見底了，給我撐住。'], complain: ['客訴成立，底氣被扣了！', '又被客訴……下次打斷他。'], charge: ['總經理在攤客訴長卷！快打斷他！'], win: ['……做得不錯。今天准你們準時下班。'], lose: ['全員留下加班。明天早會檢討。'],
 };
 let talkCd = 0;
 export function say(k, force) {
@@ -61,7 +61,7 @@ export function fxFromEvents(s, G) {
     else if (e.k === 'pending') { VIEW.pendT = 0; }
     else if (e.k === 'clear') { FX.push({ k: 'ico', ic: 'coin', x: 640, y: 440, v: `+${e.coin}`, t: 0, life: 1.6, big: true }); sfx('coin', .7); }
     else if (e.k === 'unite') { FX.push({ k: 'unite', key: e.key, x: e.x, y: e.y, x2: e.x2, y2: e.y2, r: e.r || 150, t: 0, life: 1.2 }); VIEW.cut = { key: e.key, t: 0 }; VIEW.shake = .45; sfx('unite', .9); }
-    else if (e.k === 'super') { FX.push({ k: 'merge', slot: e.slot, lv: 0, label: '超級化', t: 0, life: 1.2 }); sfx('buff', .9); }
+    else if (e.k === 'super') { const sl = s.slots[e.slot]; if (sl) { FX.push({ k: 'ico', ic: 'super', x: sl.x, y: sl.y - 90, t: 0, life: 1.2, big: true }); FX.push({ k: 'ring', x: sl.x, y: sl.y - 30, col: GOLD, t: 0, life: .8 }); } sfx('buff', .9); }
     else if (e.k === 'stun' || e.k === 'freeze') FX.push({ k: 'ring', x: e.x, y: e.y, col: e.k === 'freeze' ? '#7fd4f0' : '#f2dc96', t: 0, life: .5 });
     else if (e.k === 'fatigue') { const sl = s.slots[e.slot]; if (sl) FX.push({ k: 'ico', ic: 'fatigue', x: sl.x, y: sl.y - 80, t: 0, life: .9 }); }
     else if (e.k === 'cleanse') { (e.to || [e.slot]).forEach(i => { const sl = s.slots[i]; if (sl) FX.push({ k: 'ring', x: sl.x, y: sl.y - 20, col: '#ffe27a', t: 0, life: .6 }); }); sfx('heal', .35); }
@@ -73,7 +73,7 @@ export function fxFromEvents(s, G) {
     else if (e.k === 'charge') { sfx('boss_charge', .7); say('charge'); }
     else if (e.k === 'interrupt') { sfx('break', .9); FX.push({ k: 'ico', x: (s.foes.find(f => f.uid === e.uid) || {}).x || 640, y: ((s.foes.find(f => f.uid === e.uid) || {}).y || 300) - 110, v: '✕', ic: 'charge', col: GOLD, t: 0, life: 1.2, big: true, k2: 'ico' }); }
     else if (e.k === 'complain') { const f = s.foes.find(q => q.uid === e.uid) || { x: 640, y: 300 }; FX.push({ k: 'fly', ic: 'charge', x0: f.x, y0: f.y - 80, x1: 32, y1: 62, v: `−${e.v}`, t: 0, life: 1.1 }); VIEW.shake = .4; sfx('paper_storm', .8); say('complain', true); setTimeout(() => { VIEW.flash = .6; VIEW.heartT = .8; }, 650); }
-    else if (e.k === 'down') FX.push({ k: 'ico', ic: 'ko', x: e.x, y: e.y - 50, t: 0, life: .8 });
+    else if (e.k === 'down') FX.push({ k: 'ico', ic: 'revive', x: e.x, y: e.y - 50, t: 0, life: .8 });
     else if (e.k === 'revive') { FX.push({ k: 'ico', ic: 'life', x: e.x, y: e.y - 50, t: 0, life: .9 }); }
     else if (e.k === 'merge') { FX.push({ k: 'merge', slot: e.slot, lv: e.lv, t: 0, life: 1.1 }); sfx('train', .7); say('merge'); }
     else if (e.k === 'move') sfx('cursor', .5);
@@ -195,11 +195,13 @@ export function drawWorld(c, G, dt) {
   // 同事＋敵人依 y 排序
   const ents = [];
   s.slots.forEach((sl, i) => { if (sl.tw && !(G.drag && G.drag.from === i)) ents.push({ y: sl.y, f: () => drawTower(c, s, sl, t, dt) }); });
-  for (const f of s.foes) ents.push({ y: f.y, f: () => drawFoe(c, f, MX + f.x, MY + f.y, t) });
+  for (const f of s.foes) ents.push({ y: f.boss ? f.y + 2000 : f.y, f: () => drawFoe(c, f, MX + f.x, MY + f.y, t) });      // 頭目永遠畫在最上層
   for (const m of s.mice || []) ents.push({ y: m.y, f: () => { const im = IMG.mouse; c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(MX + m.x, MY + m.y, 9, 3, 0, 0, 7); c.fill(); if (im) { const k = 26 / im.height; c.drawImage(im, MX + m.x - im.width * k / 2, MY + m.y - 26 - Math.abs(Math.sin(t * 20 + m.uid)) * 3, im.width * k, 26); } else { c.fillStyle = '#8a8580'; c.fillRect(MX + m.x - 7, MY + m.y - 9, 14, 9); } } });
   for (const q of s.cones || []) ents.push({ y: q.y, f: () => { const x = MX + q.x, y = MY + q.y; c.fillStyle = '#1a0f08'; c.beginPath(); c.moveTo(x, y - 20); c.lineTo(x - 10, y + 2); c.lineTo(x + 10, y + 2); c.closePath(); c.fill(); c.fillStyle = '#ff8a2e'; c.beginPath(); c.moveTo(x, y - 18); c.lineTo(x - 8, y); c.lineTo(x + 8, y); c.closePath(); c.fill(); c.fillStyle = '#fff'; c.fillRect(x - 5, y - 9, 10, 3); } });
   ents.sort((a, b) => a.y - b.y).forEach(e => e.f());
   for (const sl of VIEW.mergeT || []) icon(c, 'promote', MX + sl.x, MY + sl.y - 104 - Math.abs(Math.sin(t * 5)) * 6, 34, '↑');
+  // 合體技瞄準：直線類亮整段走道、範圍類畫圓（跟著手指，沒有就放在敵人最多的地方）
+  if (G.aim) { const u = (s.unites || D.UNITES).find(q => q.key === G.aim); if (u) drawAim(c, s, u, t); }
   // 特效
   drawFx(c, dt);
   if (VIEW.flash > 0) { VIEW.flash -= dt; c.fillStyle = `rgba(178,58,48,${VIEW.flash * .5})`; c.fillRect(MX, MY, MW, MH); }
@@ -223,6 +225,19 @@ function drawTower(c, s, sl, t, dt) {
   if (tw.star > 0) text('★', x - 22, y - 62, { px: 16, col: GOLD, stroke: '#1a0f08', sw: 3 });
   if (tw.haste > 0) { c.fillStyle = '#9be0c8'; c.fillRect(x - 26, y - 50, 4, 4); c.fillRect(x - 22, y - 56, 4, 4); }
   if (tw.fatigue > 0) { icon(c, 'fatigue', x - 24, y - 70, 26, 'z'); if (tw.fatigue > 1) text(String(tw.fatigue), x - 12, y - 58, { px: 15, col: '#d8c8ff', stroke: '#1a0f08', sw: 3, w: 900 }); }
+}
+function drawAim(c, s, u, t) {
+  const L = s.lanes[0], live = s.foes.filter(f => f.hp > 0), hv = VIEW.hover && VIEW.hover.y > 60 && VIEW.hover.y < 486 ? VIEW.hover : null, a = .45 + .3 * Math.sin(t * 7);
+  c.fillStyle = 'rgba(20,13,8,.35)'; c.fillRect(0, 60, W, 426);
+  if (u.kind === 'line' || u.kind === 'wall') {
+    let gi = 0; const near = (g, x, y) => { const vx = g.bx - g.ax, vy = g.by - g.ay, q = Math.max(0, Math.min(1, ((x - g.ax) * vx + (y - g.ay) * vy) / (vx * vx + vy * vy || 1))); return Math.hypot(g.ax + vx * q - x, g.ay + vy * q - y); };
+    if (hv) { let bd = 1e9; L.seg.forEach((g, i) => { const d = near(g, hv.x - MX, hv.y - MY); if (d < bd) { bd = d; gi = i; } }); }
+    else { const w = L.seg.map(() => 0); for (const f of live) { let bi = 0, bd = 1e9; L.seg.forEach((g, i) => { const d = near(g, f.x, f.y); if (d < bd) { bd = d; bi = i; } }); w[bi] += f.hp; } gi = w.indexOf(Math.max(...w)); }
+    L.seg.forEach((g, i) => { c.strokeStyle = i === gi ? `rgba(255,122,46,${a + .2})` : 'rgba(255,246,200,.18)'; c.lineWidth = i === gi ? 46 : 30; c.lineCap = 'round'; c.beginPath(); c.moveTo(MX + g.ax, MY + g.ay); c.lineTo(MX + g.bx, MY + g.by); c.stroke(); });
+    const g = L.seg[gi]; icon(c, 'reticle', MX + (g.ax + g.bx) / 2, MY + (g.ay + g.by) / 2, 44);
+  } else { let cx, cy; if (hv) { cx = hv.x - MX; cy = hv.y - MY; } else { let best = -1; for (const q of live) { let v = 0; for (const f of live) if (Math.hypot(f.x - q.x, (f.y - q.y) * 1.25) <= u.radius) v += f.hp; if (v > best) { best = v; cx = q.x; cy = q.y; } } if (cx == null) { const p = C.posAt(L, L.L / 2); cx = p.x; cy = p.y; } }
+    c.fillStyle = `rgba(127,212,240,${a * .4})`; c.strokeStyle = '#b083f0'; c.lineWidth = 4; c.beginPath(); c.ellipse(MX + cx, MY + cy, u.radius, u.radius / 1.25, 0, 0, 7); c.fill(); c.stroke(); icon(c, 'reticle', MX + cx, MY + cy, 44); }
+  icon(c, 'finger', 640, 448 - Math.abs(Math.sin(t * 5)) * 8, 40);
 }
 function rankGems(c, x, y, lv) {
   const n = D.RULE?.maxLv || 3, sz = 8, gap = 19, x0 = x - (n - 1) * gap / 2; c.fillStyle = 'rgba(20,12,6,.75)'; c.fillRect(x0 - 13, y - 11, (n - 1) * gap + 26, 22);
@@ -354,12 +369,13 @@ export function drawHud(c, G, dt) {
   if (sel) {
     const Dt = T()[sel.id] || {};
     head(c, sel.id, ix + 42, by + 46, 64);
+    const tic = IMG['ic_' + TRAIT_IC[sel.id]]; if (tic) { c.fillStyle = '#1a0f08'; c.beginPath(); c.arc(ix + 66, by + 70, 17, 0, 7); c.fill(); c.drawImage(tic, ix + 51, by + 55, 30, 30); zone(ix + 44, by + 48, 44, 44, 'trait'); }      // 特色圖示：點了說明
     text(Dt.name || sel.id, ix + 84, by + 30, { px: 20, fam: SERIF, w: 900 }); font(20, 900, SERIF); const nw = c.measureText(Dt.name || '').width;
     icon(c, ELK[Dt.elem], ix + 98 + nw, by + 23, 26, (ELEM[Dt.elem] || [''])[0]); rankGems(c, ix + 152 + nw, by + 24, sel.lv);
     const rr = C.rangeOf ? C.rangeOf(sel) : Dt.range;
-    if (Dt.dmg) { icon(c, 'dmg', ix + 96, by + 66, 26); text(String(Math.round(Dt.dmg * C.lvK(sel.lv))), ix + 112, by + 74, { px: 18, w: 900 });
-      icon(c, 'aspd', ix + 166, by + 66, 26); text(`${Dt.rate}s`, ix + 182, by + 74, { px: 18, w: 900 });
-      icon(c, 'range', ix + 250, by + 66, 26); text(String(Math.round(rr)), ix + 266, by + 74, { px: 18, w: 900 }); }
+    if (Dt.dmg) { icon(c, 'dmg', ix + 104, by + 66, 26); text(String(Math.round(Dt.dmg * C.lvK(sel.lv))), ix + 120, by + 74, { px: 18, w: 900 });
+      icon(c, 'aspd', ix + 174, by + 66, 26); text(`${Dt.rate}s`, ix + 190, by + 74, { px: 18, w: 900 });
+      icon(c, 'range', ix + 256, by + 66, 26); text(String(Math.round(rr)), ix + 272, by + 74, { px: 18, w: 900 }); }
     if (C.moveCost) { const mc = C.moveCost(s), mx = ix + 258; icon(c, 'move', mx, by + 22, 24); if (mc) { icon(c, 'coin', mx + 22, by + 22, 18); text(String(mc), mx + 32, by + 29, { px: 15, col: mc > (s.coin || 0) ? RED : INK, w: 900 }); } else text('0', mx + 16, by + 29, { px: 16, col: TEAL, w: 900 }); }
     button(ix + iw - 72, by + 8, 66, 76, '', { down: VIEW.down === 'sell' }); icon(c, 'refund', ix + iw - 39, by + 36, 36); text(`+${(D.RULE?.sellBack || [5, 10, 20])[sel.lv - 1]}`, ix + iw - 39, by + 74, { px: 17, align: 'center', w: 900 }); zone(ix + iw - 74, by + 4, 70, 84, 'sell');
   } else {      // 沒選人：圖解「同名同級拖在一起＝升級」
@@ -368,12 +384,13 @@ export function drawHud(c, G, dt) {
     text('=', ix + 172, by + 56, { px: 30, w: 900, col: INK2 }); icon(c, 'promote', ix + 220, by + 46, 54, '↑');
     if (pend) { icon(c, 'inbox', ix + 300, by + 46, 36); text('→', ix + 326, by + 56, { px: 26, w: 900, col: INK2 }); c.strokeStyle = TEAL; c.lineWidth = 3; c.setLineDash([5, 4]); c.strokeRect(ix + 354, by + 28, 34, 36); c.setLineDash([]); }
   }
+  if (VIEW.tip && sel) { VIEW.tip.t += dt; if (VIEW.tip.t > 3) VIEW.tip = null; else { font(17, 700); const tw2 = c.measureText(VIEW.tip.s).width + 28; paper(ix, by - 50, tw2, 42, {}); text(VIEW.tip.s, ix + 14, by - 22, { px: 17, w: 700 }); } } else VIEW.tip = null;
   // 氣勢與主動技（按鈕 64 高；合體技缺誰就把誰變灰；氣勢不夠顯示要多少）
   const rx = 898, rw = W - rx - 8; wood(rx, by, rw, 92);
   icon(c, 'mom', rx + 18, by + 12, 22); bar(rx + 34, by + 7, rw - 46, 10, (s.momentum || 0) / 100, GOLD, { ticks: [.6] });
   const UN = s.unites || D.UNITES || [], bw = (rw - 28) / 3, onField = id => s.slots.some(q => q.tw && q.tw.id === id);
   UN.slice(0, 2).forEach((u, j) => { const ok = C.canUnite ? !!C.canUnite(s, u.key) : (s.momentum >= (u.cost || 60)), cd = (s.cds || {})[u.key] || 0, bx1 = rx + 7 + j * (bw + 7);
-    button(bx1, by + 22, bw, 64, '', { off: !ok, hot: ok, down: VIEW.down === 'unite:' + u.key });
+    button(bx1, by + 22, bw, 64, '', { off: !ok, hot: ok, down: VIEW.down === 'unite:' + u.key || G.aim === u.key });
     u.who.forEach((w, k) => { const here = onField(w); c.save(); if (!here) c.filter = 'grayscale(1) brightness(.6)'; c.globalAlpha = ok || here ? 1 : .6; head(c, w, bx1 + bw / 2 + (k ? 15 : -15), by + 50, 34); c.restore(); });
     if (cd > 0) num(Math.ceil(cd), bx1 + bw / 2, by + 60, 22, { align: 'center' });
     else if (!ok && u.who.every(onField) && (s.momentum || 0) < (u.cost || 60)) { icon(c, 'mom', bx1 + 16, by + 76, 16); text(String(u.cost || 60), bx1 + 26, by + 81, { px: 13, col: '#8a7d66', w: 900 }); }
@@ -417,7 +434,7 @@ export function drawResult(c, G, dt) {
   paper(390, 70, 500, 420, { clip: true, lines: true });
   text('結案報告', 640, 130, { px: 34, align: 'center', fam: SERIF, w: 900 });
   stamp(r.win ? '準時下班' : '留下加班', 610, 200, { px: 40, col: r.win ? TEAL : RED, rot: -.1 }); icon(c, r.win ? 'clock_ok' : 'clock_ng', 800, 200, 64);
-  const rows = [['wave', `${r.wave} / ${D.WAVES.length}`], ['ko', `${r.kills}`], ['life', `${r.lives}`], ['speed', `${Math.floor(r.t / 60)}:${String(Math.floor(r.t % 60)).padStart(2, '0')}`]];
+  const rows = [['wave', `${r.wave} / ${D.WAVES.length}`], ['ko2', `${r.kills}`], ['heart', `${r.lives}`], ['speed', `${Math.floor(r.t / 60)}:${String(Math.floor(r.t % 60)).padStart(2, '0')}`]];
   rows.forEach(([ic, b], i) => { icon(c, ic, 470, 272 + i * 36, 30); text(b, 830, 282 + i * 36, { px: 24, align: 'right', w: 900 }); });
   button(430, 408, 200, 72, '', { hot: true, down: VIEW.down === 'again' }); icon(c, 'replay', 530, 444, 50, '↻'); zone(430, 408, 200, 72, 'again');
   button(650, 408, 200, 72, '', { down: VIEW.down === 'title' }); icon(c, 'home', 750, 444, 50, '⌂'); zone(650, 408, 200, 72, 'title');

@@ -10,6 +10,8 @@ const img = src => new Promise(ok => { const i = new Image(); i.onload = () => o
 const json = src => fetch(src).then(r => r.ok ? r.json() : null).catch(() => null);
 
 export const UI_ICONS = ['el_slash', 'el_blunt', 'el_fire', 'el_ice', 'el_holy', 'el_dark', 'res', 'coin', 'ko', 'life', 'wave', 'call', 'speed', 'pause', 'snd_on', 'snd_off', 'summon', 'inbox', 'dmg', 'aspd', 'range', 'refund', 'move', 'promote', 'mom', 'super', 'fatigue', 'shield', 'guard', 'charge', 'replay', 'home', 'ko2', 'call2', 'entrance', 'clock_ok', 'clock_ng', 'reticle', 'heart', 'finger', 'dizzy', 'revive'];
+// 每位同事的特色圖示（借本作的招式圖示 art/icons/sk_*）
+export const TRAIT_IC = { kui: 'sk_sweep', jie: 'sk_burn', kevin: 'sk_taunt', mi: 'sk_antidote', vivi: 'sk_rehire', yan: 'sk_freeze', heilun: 'sk_deal', cha: 'sk_errand', qiang: 'sk_box', senpai: 'sk_probe', wu: 'sk_dance', you: 'sk_backdoor', fairy: 'sk_mice', xu: 'sk_prescription', zhe: 'sk_escalate', an: 'sk_wetfloor' };
 export const HEROES = ['kui', 'jie', 'kevin', 'mi', 'yan', 'zhe', 'heilun', 'cha', 'qiang', 'senpai', 'you', 'xu', 'wu', 'fairy', 'an', 'vivi'];
 export const FOE_ART = { minion: 'minion', courier: 'courier', knight: 'knight', intern: 'intern', auntie: 'auntie', smoker: 'smoker', chief: 'chief', boss: 'boss', parrot: 'parrot', monkey: 'monkey', pig: 'pig', audit: 'audit' };
 const DIRS = ['down', 'dside', 'side', 'uside', 'up'];      // 8 方向：畫 5 個（斜前 dside、斜後 uside 都面向右），左邊翻轉
@@ -42,6 +44,7 @@ export async function loadAll(onProg) {
   jobs.push(img('art/map/pad.png').then(i => IMG.pad = i));
   jobs.push(json('art/map/pad.json').then(j => IMG.padMeta = j));
   for (const k of ['clock', 'boss', 'battle', 'shop', 'rest', 'recruit']) jobs.push(img(`art/icons/${k}.png`).then(i => IMG[`ic_${k}`] = i));
+  for (const k of new Set(Object.values(TRAIT_IC))) jobs.push(img(`art/icons/${k}.png`).then(i => { if (i) IMG[`ic_${k}`] = i; }));
   for (const k of UI_ICONS) jobs.push(img(`art/ui/${k}.png`).then(i => { if (i) IMG[`ui_${k}`] = i; }));      // 介面圖示（tools/ui_icons.py 切的）
   let done = 0; const n = jobs.length;
   await Promise.all(jobs.map(p => p.then(() => onProg && onProg(++done / n))));
