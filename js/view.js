@@ -109,7 +109,8 @@ function drawFoe(c, f, x, y, t) {
   const dx = f.x - v.px, dy = f.y - v.py; if (Math.abs(dx) + Math.abs(dy) > .3) { v.dir = Math.abs(dy) > Math.abs(dx) ? (dy > 0 ? 'down' : 'up') : 'side'; v.flip = dx < 0; } v.px = f.x; v.py = f.y;
   const ph = (t * 1.8 + (f.ph || f.uid * .37)) % 1; if (f.down > 0) c.globalAlpha = .45;
   c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(x, y, f.boss ? 30 : 15, f.boss ? 8 : 5, 0, 0, 7); c.fill();
-  if (!drawQ(c, 'foe_' + f.kind, f.hitT > 0 && Q['foe_' + f.kind]?.strips['hit_' + v.dir] ? 'hit' : 'walk', v.dir, v.flip, ph, x, y)) {
+  const fq = Q['foe_' + f.kind], pose = fq && (f.down > 0 && fq.strips.down_down ? 'down' : f.guard && fq.strips.guard_down ? 'guard' : f.charge > 0 && fq.strips.charge_down ? 'charge' : null);      // 特殊姿勢只有正面一張
+  if (!drawQ(c, 'foe_' + f.kind, pose || (f.hitT > 0 && fq?.strips['hit_' + v.dir] ? 'hit' : 'walk'), pose ? 'down' : v.dir, v.flip, ph, x, y)) {
     const im = (f.hitT > 0 && IMG[`foe_${f.kind}_hit`]) || IMG[`foe_${f.kind}`]; if (!im) { c.fillStyle = RED; c.fillRect(x - 10, y - 30, 20, 30); }
     else { const h = FOE_H[f.kind] || 48, k = h / im.height, bob = Math.abs(Math.sin(ph * Math.PI * 2)) * (f.boss ? 2 : 3);
       c.save(); c.translate(Math.round(x), Math.round(y - bob)); if (v.flip === false && v.dir === 'side') c.scale(-1, 1);      // RPG 的敵人圖面向左；往右走時翻過來
