@@ -13,7 +13,7 @@ export const UI_ICONS = ['el_slash', 'el_blunt', 'el_fire', 'el_ice', 'el_holy',
 // 每位同事的特色圖示（借本作的招式圖示 art/icons/sk_*）
 export const TRAIT_IC = { kui: 'sk_sweep', jie: 'sk_burn', kevin: 'sk_taunt', mi: 'sk_antidote', vivi: 'sk_rehire', yan: 'sk_freeze', heilun: 'sk_deal', cha: 'sk_errand', qiang: 'sk_box', senpai: 'sk_probe', wu: 'sk_dance', you: 'sk_backdoor', fairy: 'sk_mice', xu: 'sk_prescription', zhe: 'sk_escalate', an: 'sk_wetfloor' };
 export const HEROES = ['kui', 'jie', 'kevin', 'mi', 'yan', 'zhe', 'heilun', 'cha', 'qiang', 'senpai', 'you', 'xu', 'wu', 'fairy', 'an', 'vivi'];
-export const FOE_ART = { minion: 'minion', courier: 'courier', knight: 'knight', intern: 'intern', auntie: 'auntie', smoker: 'smoker', chief: 'chief', boss: 'boss', parrot: 'parrot', monkey: 'monkey', pig: 'pig', audit: 'audit' };
+export const FOE_ART = { minion: 'minion', courier: 'courier', knight: 'knight', intern: 'intern', auntie: 'auntie', smoker: 'smoker', chief: 'chief', boss: 'boss', parrot: 'parrot', monkey: 'monkey', pig: 'pig', audit: 'audit', ghost: 'ghost', clerk: 'clerk', patcher: 'patcher', cart: 'cart', mini: 'mini' };      // 後五種只有新 Q 版圖（沒有 RPG 舊圖）
 const DIRS = ['down', 'dside', 'side', 'uside', 'up'];      // 8 方向：畫 5 個（斜前 dside、斜後 uside 都面向右），左邊翻轉
 
 // 一個角色的 Q 版表：{ cell, foot, frames, scale, strips: { 'idle_down': Image, ... } }
