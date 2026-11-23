@@ -26,7 +26,8 @@ const LINES = {
 let talkCd = 0;
 export function say(k, force) {
   const L = LINES[k]; if (!L) return; if (!force && talkCd > 0 && k !== 'win' && k !== 'lose') return;
-  VIEW.talk = { s: L[Math.floor(Math.random() * L.length)], t: 0 }; talkCd = 4;
+  const IC = { intro: 'clock_ok', wave: 'wave', leak: 'clock_ng', merge: 'promote', boss: 'charge', boss_chief: 'guard', boss_boss: 'charge', low: 'heart', charge: 'reticle', complain: 'charge', win: 'clock_ok', lose: 'clock_ng' };
+  VIEW.talk = { s: L[Math.floor(Math.random() * L.length)], t: 0, ic: IC[k] }; talkCd = 4;
 }
 
 // ---------- 點擊區 ----------
@@ -321,19 +322,20 @@ export function drawHud(c, G, dt) {
   if (next) { const dn = VIEW.down === 'call' ? 3 : 0, cx = 204, cy = 44; button(166, 10, 76, 68, '', { hot: true, down: VIEW.down === 'call' });
     const tot = s.wave === 0 ? (D.RULE?.firstDelay || 12) : (D.RULE?.breakT || 8); c.strokeStyle = GOLD; c.lineWidth = 4; c.beginPath(); c.arc(cx, cy + dn, 27, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, s.waveT / tot)); c.stroke();
     icon(c, 'call2', cx, cy + dn, 36, '▶'); num(next, cx + 18, cy + 26 + dn, 15, { col: CREAM }); zone(160, 4, 88, 80, 'call'); }
-  // 左邊：Vivi 視訊
-  const vx = 8, vy = 90, vw = 176, vh = 196;
+  // 左邊：Vivi 視訊（平時縮成小頭像；有事件時展開 3.5 秒，附事件圖示，字 16px）
+  const vx = 8, vy = 90, open = VIEW.talk && VIEW.talk.t < 3.5; if (VIEW.talk) VIEW.talk.t += dt;
+  const ex = VIEW.vivEx = (VIEW.vivEx || 0) + ((open ? 1 : 0) - (VIEW.vivEx || 0)) * Math.min(1, dt * 10), vw = 176, vh = 80 + 116 * ex;
   c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(vx + 3, vy + 5, vw, vh); c.fillStyle = pats().WOOD_D; c.fillRect(vx, vy, vw, vh); c.strokeStyle = '#1a0f08'; c.lineWidth = 2; c.strokeRect(vx + 1, vy + 1, vw - 2, vh - 2);
-  c.fillStyle = '#3b2d4a'; c.fillRect(vx + 6, vy + 24, vw - 12, 116);
-  c.fillStyle = Math.floor(t * 2) % 2 ? '#c8554a' : '#7a2a22'; c.fillRect(vx + 10, vy + 9, 8, 8); text('Vivi', vx + 24, vy + 18, { px: 14, col: '#d9c7a0', w: 900 });
-  const bv = IMG.bust_vivi; if (bv) { c.save(); c.beginPath(); c.rect(vx + 6, vy + 24, vw - 12, 116); c.clip(); const k = 230 / bv.height, talk = VIEW.talk && VIEW.talk.t < 2.5; c.drawImage(bv, vx + vw / 2 - bv.width * k / 2, vy + 20 + (talk ? Math.sin(t * 18) * .8 : 0), bv.width * k, bv.height * k); c.restore(); }
-  c.fillStyle = 'rgba(255,255,255,.05)'; for (let yy = vy + 24; yy < vy + 140; yy += 3) c.fillRect(vx + 6, yy, vw - 12, 1);
-  c.fillStyle = pats().PAPER; c.fillRect(vx + 6, vy + 144, vw - 12, vh - 150);
-  if (VIEW.talk) { VIEW.talk.t += dt; wrap(c, VIEW.talk.s.slice(0, Math.floor(VIEW.talk.t * 24)), vx + 12, vy + 162, vw - 24, 18, { px: 14 }); }
+  const ph = 56 + 60 * ex; c.fillStyle = '#3b2d4a'; c.fillRect(vx + 6, vy + 18, vw - 12, ph);
+  c.fillStyle = Math.floor(t * 2) % 2 ? '#c8554a' : '#7a2a22'; c.fillRect(vx + 10, vy + 6, 7, 7);
+  const bv = IMG.bust_vivi; if (bv) { c.save(); c.beginPath(); c.rect(vx + 6, vy + 18, vw - 12, ph); c.clip(); const k = (150 + 80 * ex) / bv.height, talk = open && VIEW.talk.t < 2.5; c.drawImage(bv, vx + vw / 2 - bv.width * k / 2, vy + 14 + (talk ? Math.sin(t * 18) * .8 : 0), bv.width * k, bv.height * k); c.restore(); }
+  c.fillStyle = 'rgba(255,255,255,.05)'; for (let yy = vy + 18; yy < vy + 18 + ph; yy += 3) c.fillRect(vx + 6, yy, vw - 12, 1);
+  if (ex > .05 && VIEW.talk) { c.globalAlpha = ex; if (VIEW.talk.ic) { c.fillStyle = 'rgba(26,15,8,.75)'; c.beginPath(); c.arc(vx + vw - 26, vy + 40, 22, 0, 7); c.fill(); icon(c, VIEW.talk.ic, vx + vw - 26, vy + 40, 36); }
+    c.fillStyle = pats().PAPER; c.fillRect(vx + 6, vy + 22 + ph, vw - 12, vh - ph - 28); wrap(c, VIEW.talk.s.slice(0, Math.floor(VIEW.talk.t * 24)), vx + 12, vy + 44 + ph, vw - 24, 21, { px: 16 }); c.globalAlpha = 1; }
   // 左邊：下一波敵人（頭像＋數量＋弱點；頭目波放頭目頭像加紅框）
   const NW = D.WAVES[s.wave];
   if (NW) { const kinds = []; NW.groups.forEach(g => { const o = kinds.find(z => z.k === g.kind); o ? o.n += g.n : kinds.push({ k: g.kind, n: g.n }); });
-    const ky = 296, kh = 40 + Math.min(4, kinds.length) * 34; wood(8, ky, 176, kh); if (NW.boss) { c.strokeStyle = RED; c.lineWidth = 3; c.strokeRect(10, ky + 2, 172, kh - 4); }
+    const ky = 90 + 80 + 116 * (VIEW.vivEx || 0) + 10, kh = 40 + Math.min(4, kinds.length) * 34; wood(8, ky, 176, kh); if (NW.boss) { c.strokeStyle = RED; c.lineWidth = 3; c.strokeRect(10, ky + 2, 172, kh - 4); }
     icon(c, 'wave', 26, ky + 20, 24); num(s.wave + 1, 42, ky + 28, 18, { col: GOLD });
     kinds.slice(0, 4).forEach((o, j) => { const y = ky + 54 + j * 34, im = IMG['foe_' + o.k], bossK = F()[o.k]?.boss;
       c.fillStyle = bossK ? 'rgba(178,58,48,.35)' : 'rgba(239,230,207,.12)'; c.fillRect(14, y - 15, 164, 30);

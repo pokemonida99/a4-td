@@ -29,7 +29,7 @@ function newRun() {
   G.s = C.newGame({ seed: (Date.now() & 0xffffff) }); G.sel = -1; G.drag = null; G.paused = false; G.pickSuper = false; G.aim = null; resetView();
   G.scene = 'play'; bgm('battle'); say('intro');
 }
-G.newRun = newRun;
+G.newRun = newRun; G.say = say;      // 測試用
 
 // ---------- 輸入 ----------
 const toLogic = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H }; };
