@@ -137,7 +137,9 @@ function drawFoe(c, f, x, y, t) {
     if (f.charge > 0) {      // 客訴長卷蓄力：橘條＝蓄力時間；金條＝已經打的傷害，到刻度就打斷
       const need = f.max * (F()[f.kind]?.scroll?.breakK || .06), bw = 96, bx = x - bw / 2, by = y - h - 44 < 70 ? y + 14 : y - h - 44;      // 太上面會被介面蓋住，改畫在腳下
       icon(c, 'charge', bx - 18, by + 6, 30); bar(bx, by, bw, 8, f.charge, '#ff7a2e'); bar(bx, by + 12, bw, 8, Math.min(1, (f.chargeDmg || 0) / need), GOLD);
-      c.save(); c.translate(x, y - h * .45); c.rotate(t * 2); if (!icon(c, 'reticle', 0, 0, h * 1.1)) { c.strokeStyle = '#ff5a4a'; c.lineWidth = 3; c.beginPath(); c.arc(0, 0, h * .5, 0, 7); c.stroke(); } c.restore(); }
+      const r = h * .62 + Math.sin(t * 8) * 3, cy2 = y - h * .48; c.strokeStyle = '#ff4a3a'; c.lineWidth = 4; c.lineCap = 'square';      // 鎖定框：四個角繞著轉，不蓋住頭目本人
+      for (let j = 0; j < 4; j++) { const ang = t * 1.5 + j * Math.PI / 2; c.save(); c.translate(x + Math.cos(ang) * r, cy2 + Math.sin(ang) * r * .8); c.rotate(ang + Math.PI * .75); c.beginPath(); c.moveTo(-9, 0); c.lineTo(0, 0); c.lineTo(0, -9); c.stroke(); c.restore(); }
+      icon(c, 'reticle', x + h * .55, y - h - 4 < 70 ? y + 2 : y - h - 4, 28); }
   }
   if (!f.boss && f.hp < f.max) { const bw = 30, hy = y - h - 8 < 56 ? y + 6 : y - h - 8; bar(x - bw / 2, hy, bw, 4, f.hp / f.max, '#d24a3a'); }      // 上走廊太高會被木牌蓋住，改畫腳下
   const wk = F()[f.kind]?.weak; if (wk && wk[0] && !f.boss) icon(c, ELK[wk[0]], x + 20, y - h - 6, 20, (ELEM[wk[0]] || [''])[0]);
