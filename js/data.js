@@ -70,13 +70,13 @@ export const FOES = {
              scroll: { walk: 8, first: 14, charge: 5, breakK: .06, broken: 5, brokenK: 1.6, hit: 2 } },
 };
 
-// 波次：hpK＝這波血量再乘（前幾波放寬）；groups 依序出場；at＝從這波開始算第幾秒出第一隻（不寫就接在上一組後面）；gap＝每隻間隔
+// 波次：hpK＝這波血量再乘（第 1～4 波放寬：新手只買 3 位也要撐過前兩波）；groups 依序出場；at＝從這波開始算第幾秒出第一隻（不寫就接在上一組後面）；gap＝每隻間隔
 const G = (kind, n, gap, at) => ({ kind, n, gap, ...(at != null ? { at } : {}) });
 export const WAVES = [
-  { name: '加班大隊報到',     groups: [G('minion', 14, 2.6)] },
-  { hpK: .8, name: '催稿信差來了',     groups: [G('minion', 12, 2), G('courier', 10, 1.5, 18), G('minion', 6, 1.6)] },
-  { hpK: .8, name: '公文櫃重甲兵',     groups: [G('minion', 14, 1.6), G('knight', 5, 4, 6), G('courier', 8, 1.2, 26), G('minion', 8, 1.5)] },
-  { hpK: .8, name: '續命實習生',       groups: [G('intern', 12, 1.6), G('courier', 10, 1, 12), G('minion', 12, 1.3, 22), G('intern', 6, 1.5, 36)] },
+  { hpK: .75, name: '加班大隊報到',     groups: [G('minion', 14, 2.6)] },
+  { hpK: .55, name: '催稿信差來了',     groups: [G('minion', 12, 2), G('courier', 10, 1.5, 18), G('minion', 6, 1.6)] },
+  { hpK: .6, name: '公文櫃重甲兵',     groups: [G('minion', 14, 1.6), G('knight', 5, 4, 6), G('courier', 8, 1.2, 26), G('minion', 8, 1.5)] },
+  { hpK: .75, name: '續命實習生',       groups: [G('intern', 12, 1.6), G('courier', 10, 1, 12), G('minion', 12, 1.3, 22), G('intern', 6, 1.5, 36)] },
   { boss: 'chief', name: '甩鍋課長', groups: [G('minion', 14, 2), G('chief', 1, 1, 6), G('knight', 4, 5, 12), G('courier', 8, 1.2, 30)] },
   { name: '大媽同事',         groups: [G('minion', 16, 1.6), G('auntie', 4, 7, 4), G('knight', 5, 4.5, 10), G('courier', 8, 1, 34)] },
   { name: '信差衝刺',         groups: [G('courier', 24, .8), G('intern', 12, 1.3, 8), G('minion', 14, 1.2, 24), G('courier', 10, .7, 40)] },

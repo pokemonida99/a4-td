@@ -10,7 +10,7 @@ export const VIEW = { hover: null, down: null, summonT: 0, talk: null, zones: []
 export const FX = [];
 const T = () => D.TOWERS, F = () => D.FOES;
 const ROMAN = ['', 'I', 'II', 'III', 'IV'];
-const KIND_NOTE = { single: '單體攻擊', splash: '範圍攻擊', multi: '同時打好幾個', aura: '身邊全打', buff: '幫旁邊的人加攻', gen: '產生人力額度', line: '直線穿刺', summon: '召喚', heal: '支援' };
+const KIND_NOTE = { single: '單體攻擊', splash: '範圍攻擊', multi: '同時打好幾個', aura: '身邊全打', buff: '幫旁邊的人加攻', gen: '產生預算', line: '直線穿刺', summon: '召喚', heal: '支援' };
 
 export function resetView() { FX.length = 0; VIEW.tw = {}; VIEW.foe = {}; VIEW.banner = null; VIEW.talk = null; VIEW.shake = 0; VIEW.flash = 0; VIEW.bossKind = null; }
 export const layout = { MX, MY, MW, MH };
@@ -18,7 +18,7 @@ export const layout = { MX, MY, MW, MH };
 // ---------- Vivi 的台詞（側欄視訊） ----------
 const LINES = {
   intro: ['本公司鼓勵準時下班。現在，請各位證明。'],
-  wave: ['又來一批，別讓他們碰到打卡機。', '下一波。動作快一點。', '我看著呢，別讓我失望。', '人力夠了就「緊急調派」，別省。'],
+  wave: ['又來一批，別讓他們碰到打卡機。', '下一波。動作快一點。', '我看著呢，別讓我失望。', '錢夠了就「緊急調派」，別存著。'],
   boss_chief: ['甩鍋課長來了。等他把鍋丟出去再打。'], boss_boss: ['總經理親自來了……全力擋下，這是命令。'], boss: ['主管級的來了，集中火力。'],
   leak: ['有工作漏進來了！', '打卡機那邊在叫了，注意！'], merge: ['職級核定，通過。', '升職了？那就拿出升職的樣子。'],
   low: ['底氣快見底了，給我撐住。'], complain: ['客訴成立，底氣被扣了！', '又被客訴……下次打斷他。'], charge: ['總經理在攤客訴長卷！快打斷他！'], win: ['……做得不錯。今天准你們準時下班。'], lose: ['全員留下加班。明天早會檢討。'],
