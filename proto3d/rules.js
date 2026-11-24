@@ -30,7 +30,7 @@ export const PHYS = { slash: 1, fist: 1 };
 export const LV = [1, 1.55, 2.3];
 export const RULE = {
   lives: 10, upK: [0.8, 1.3], sellBack: 0.6, waveCoin: w => 26 + w * 5, hpK: [1, 1.15, 1.3, 1.65, 2.0, 2.2, 2.5, 2.8, 2.5, 3.2, 2.8, 3.3], maxLv: 3,
-  prep: 15, earlyMax: 12,                       // 每波之間倒數 15 秒；提早開，剩幾秒多拿幾元（最多 12）
+  prep: w => (w <= 3 ? 10 : 16), earlyMax: 12,  // 每波之間倒數（前三波 10 秒、之後 16 秒）；倒數前半段提早開都拿滿 12 元，後半段遞減
   skill: { dur: 6, cd: 40, spd: 0.5 },          // 精神喊話：全員攻速 +50%，6 秒，冷卻 40 秒
   immune: 4,                                    // 冰凍／麻痺結束後 4 秒內不會再中
 };

@@ -41,11 +41,11 @@ export function startWave(s) {
   if (!canStart(s)) return false;
   for (const [type, n, gap, delay] of WAVES[s.wave]) for (let k = 0; k < n; k++) s.q.push({ t: s.t + 1 + delay + k * gap, type });
   // 倒數還沒走完就提早開：剩幾秒就多拿幾元
-  const bonus = s.wave > 0 ? Math.min(RULE.earlyMax, Math.floor(s.prepT)) : 0; if (bonus > 0) { s.coin += bonus; s.early += bonus; }
+  const bonus = earlyBonus(s); if (bonus > 0) { s.coin += bonus; s.early += bonus; }
   for (const sl of s.slots) if (sl.h) sl.h.fresh = false;
   s.q.sort((a, b) => a.t - b.t); s.phase = 'fight'; s.prepT = 0; s.ev.push({ k: 'wave', n: s.wave + 1, bonus, boss: WAVES[s.wave].some(g => FOE[g[0]].leak) }); return true;
 }
-export const earlyBonus = s => (s.phase === 'prep' && s.wave > 0 ? Math.min(RULE.earlyMax, Math.floor(s.prepT)) : 0);
+export const earlyBonus = s => (s.phase === 'prep' && s.wave > 0 && s.prepT > 0 ? Math.ceil(RULE.earlyMax * Math.min(1, s.prepT / (RULE.prep(s.wave) / 2))) : 0);
 // 主動技能「精神喊話」：全員出手加快幾秒
 export const canSkill = s => s.phase === 'fight' && s.skillCd <= 0 && s.slots.some(sl => sl.h);
 export function useSkill(s) { if (!canSkill(s)) return false; s.skillT = RULE.skill.dur; s.skillCd = RULE.skill.cd; s.ev.push({ k: 'skill' }); return true; }
@@ -192,7 +192,7 @@ export function step(s, dt = DT) {
 
   if (s.lives <= 0) { s.phase = 'lost'; s.ev.push({ k: 'lost' }); return; }
   if (s.phase === 'fight' && !s.q.length && !s.foes.length) {
-    const bonus = RULE.waveCoin(s.wave); s.coin += bonus; s.wave++; s.prepT = RULE.prep; s.rats.forEach(r => (r.life = Math.min(r.life, 0.5)));
+    const bonus = RULE.waveCoin(s.wave); s.coin += bonus; s.wave++; s.prepT = RULE.prep(s.wave); s.rats.forEach(r => (r.life = Math.min(r.life, 0.5)));
     if (s.wave >= WAVES.length) { s.phase = 'won'; s.ev.push({ k: 'won' }); } else { s.phase = 'prep'; s.ev.push({ k: 'clear', bonus, n: s.wave }); }
   }
 }

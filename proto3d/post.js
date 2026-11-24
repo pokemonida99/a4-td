@@ -114,7 +114,7 @@ void main(){
   float b = bayer8(gl_FragCoord.xy);
   c = floor(c * uBloom.z + b) / uBloom.z;
   gl_FragColor = vec4(c, 1.0);
-}`, { tColor: { value: null }, tBloomA: { value: null }, tBloomB: { value: null }, uGrade: { value: new THREE.Vector4(1.0, 1.06, 0.6, 1.0) }, uBloom: { value: new THREE.Vector3(0.4, 0.55, 30) }, uLift: { value: new THREE.Vector3(0.010, 0.015, 0.032) } });
+}`, { tColor: { value: null }, tBloomA: { value: null }, tBloomB: { value: null }, uGrade: { value: new THREE.Vector4(1.0, 1.06, 0.6, 1.0) }, uBloom: { value: new THREE.Vector3(0.3, 0.4, 30) }, uLift: { value: new THREE.Vector3(0.010, 0.015, 0.032) } });
 
   const up = mat(`
 precision highp float; varying vec2 vUv;

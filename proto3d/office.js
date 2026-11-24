@@ -184,7 +184,7 @@ export function buildOffice(scene, seed) {
     const mOn = new THREE.Mesh(On.geo(), EM), mOff = new THREE.Mesh(Off.geo(), LM); mOn.visible = false; mOff.castShadow = true; scene.add(mOn, mOff);
     const l = point(0xffb866, 0, 10, sx - .55, 1.12, z + .08, 0.035), lamp = { light: l, base: 0, ph: rnd() * 9, x: sx - .55, y: 1.2, z: z + .3, c: [1.0, 0.72, 0.36], k: 0 };
     out.lamps.push(lamp);
-    out.desks.push({ set(v) { mOn.visible = v; mOff.visible = !v; lamp.base = v ? 30 : 0; lamp.k = v ? .5 : 0; l.intensity = lamp.base; } });
+    out.desks.push({ set(v) { mOn.visible = v; mOff.visible = !v; lamp.base = v ? 23 : 0; lamp.k = v ? .5 : 0; l.intensity = lamp.base; } });
     B.box(sx - .2 + rnd() * .16, .81, z + .05, .3, .03 + rnd() * .12, .4, 0xece6d4, { ry: rnd() * .5 - .25 });
     if (rnd() < .7) B.box(sx + .02, .81, z - .22, .11, .13, .11, [0xd0452f, 0xf2c84b, 0x4fa3d9, 0xe9e2d0][k % 4], { jit: 0 });
     if (rnd() < .5) { B.box(sx - .3, .81, z - .24, .16, .12, .16, 0xb5653a); for (let i = 0; i < 5; i++) B.box(sx - .3 + rnd() * .14 - .07, .93 + rnd() * .1, z - .24 + rnd() * .14 - .07, .1, .14, .1, 0x4f9a55, { ry: rnd() * 3 }); }

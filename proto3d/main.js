@@ -60,11 +60,11 @@ const rnd = Math.random;
 const ringGeo = (r0, r1) => new THREE.RingGeometry(r0, r1, 48).rotateX(-Math.PI / 2);
 const addMat = (rgb, op = 1) => new THREE.MeshBasicMaterial({ color: new THREE.Color(rgb[0], rgb[1], rgb[2]), transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false });
 const markers = MAP.slots.map(([x, z]) => {
-  const g = new THREE.Group(), m = addMat([0.25, 0.8, 0.7], .55);
-  g.add(new THREE.Mesh(ringGeo(.5, .58), m), new THREE.Mesh(new THREE.PlaneGeometry(.34, .08).rotateX(-Math.PI / 2), m), new THREE.Mesh(new THREE.PlaneGeometry(.08, .34).rotateX(-Math.PI / 2), m));
+  const g = new THREE.Group(), m = addMat([0.3, 1.0, 0.85], .7);
+  g.add(new THREE.Mesh(ringGeo(.6, .72), m), new THREE.Mesh(new THREE.PlaneGeometry(.46, .12).rotateX(-Math.PI / 2), m), new THREE.Mesh(new THREE.PlaneGeometry(.12, .46).rotateX(-Math.PI / 2), m));
   g.position.set(x, .05, z); scene.add(g); return { g, m };
 });
-const selRing = new THREE.Mesh(ringGeo(.62, .74), addMat([1.6, 1.1, 0.35], .9)); selRing.visible = false; scene.add(selRing);
+const selRing = new THREE.Mesh(ringGeo(.78, .96), addMat([1.8, 1.25, 0.4], 1)); selRing.visible = false; scene.add(selRing);
 const rangeRing = new THREE.Mesh(ringGeo(.975, 1), addMat([1.2, 1.2, 1.3], .9)), rangeFill = new THREE.Mesh(new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), addMat([0.5, 0.6, 0.9], .1));
 rangeRing.visible = rangeFill.visible = false; scene.add(rangeRing, rangeFill);
 rangeRing.material.depthTest = false; rangeRing.renderOrder = 5; selRing.material.depthTest = false; selRing.renderOrder = 6;   // 射程圈不被桌子擋住
@@ -157,20 +157,20 @@ function onEvents() {
     else if (e.k === 'spawn') { const f = new Fig(CAST[e.f.type]); f.bar(e.f.elem); if (!CAST[e.f.type].ghost) f.c.mat.userData.self.value = .8; f.c.face = Math.atan2(e.f.dx, e.f.dz); f.place(e.f.x, e.f.z); foeFig.set(e.f.id, f); e.f.ph = rnd() * 8; if (FOE[e.f.type].leak) { ui.toast(`<b>${FOE[e.f.type].name}</b> 來了！漏掉會扣 ${FOE[e.f.type].leak} 條命`, 3.5); shake = .3; } }
     else if (e.k === 'atk') {
       const a = heroAnim[e.i], [x, z] = MAP.slots[e.i]; a.atk = 0;
-      if (e.kind === 'melee') for (const [tx, tz] of e.to) { arc(tx, tz, col); spark(tx, 1, tz, col, 5, 2); }
-      else if (e.kind === 'pierce') { const [tx, tz] = e.to[0]; beam(x, 1.3, z, tx, 1.0, tz, col, .12, .2); flash(x, 1.5, z, col, 6, .15); }
-      else if (e.kind === 'blast') { const [tx, tz] = e.to[0]; boom(tx, tz, e.r, col.map(v => v * .5), .42); flash(x, 1.6, z, col, 7, .2); }
-      else if (e.kind === 'bolt') { const m = new THREE.Mesh(boltGeo, emat(e.elem)); scene.add(m); bolts.set(e.shot.id, { m, sh: e.shot, col, x0: x, z0: z }); flash(x, 1.6, z, col, 6, .14); }
+      if (e.kind === 'melee') for (const [tx, tz] of e.to) { arc(tx, tz, col); spark(tx, 1, tz, col, 3, 2); }
+      else if (e.kind === 'pierce') { const [tx, tz] = e.to[0]; beam(x, 1.3, z, tx, 1.0, tz, col, .1, .18); }
+      else if (e.kind === 'blast') { const [tx, tz] = e.to[0]; boom(tx, tz, e.r, col.map(v => v * .5), .42); flash(x, 1.6, z, col, 4, .15); }
+      else if (e.kind === 'bolt') { const m = new THREE.Mesh(boltGeo, emat(e.elem)); scene.add(m); bolts.set(e.shot.id, { m, sh: e.shot, col, x0: x, z0: z }); }
       else if (e.kind === 'summon') spark(x, 1.6, z, col, 12, 2);
     }
     else if (e.k === 'boom') {
       if (e.id) { const b = bolts.get(e.id); if (b) { scene.remove(b.m); bolts.delete(e.id); } }
-      const big = e.r > .8; spark(e.x, 1, e.z, col, big ? 18 : 8, big ? 4 : 2.5); flash(e.x, 1.1, e.z, col, big ? 22 : 11, .22);
+      const big = e.r > .8; spark(e.x, 1, e.z, col, big ? 14 : 5, big ? 4 : 2.5); flash(e.x, 1.1, e.z, col, big ? 15 : 5, big ? .2 : .12);   // 常態命中只閃一下，大範圍才亮
       if (big) { boom(e.x, e.z, e.r, col); if (e.elem === 'light') beam(e.x, 7, e.z, e.x, 0, e.z, col, .3, .22); if (e.elem === 'dark') beam(e.x, 0, e.z, e.x, 2.4, e.z, col, .5, .2); }
     }
     else if (e.k === 'dmg') { const p = project(e.x, 2.2, e.z); ui.float(p[0], p[1], e.v, e.mul > 1 ? 'crit' : e.mul < 1 ? 'weak' : '', e.elem); }
     else if (e.k === 'die') { const f = foeFig.get(e.f.id); if (f) { spark(e.f.x, .9, e.f.z, [1.6, 1.4, 1.0], e.f.max > 600 ? 40 : 12, 2.8); f.dispose(); foeFig.delete(e.f.id); } const p = project(e.f.x, 1.2, e.f.z); ui.coinFly(p[0], p[1], e.coin); if (e.f.max > 600) shake = .4; }
-    else if (e.k === 'leak') { const f = foeFig.get(e.f.id); if (f) { f.dispose(); foeFig.delete(e.f.id); } shake = .35; flash(office.clockPos[0], 1.8, office.clockPos[1], [1.8, .25, .2], 40, .5); ui.leak(e.n); }
+    else if (e.k === 'leak') { const f = foeFig.get(e.f.id); if (f) { f.dispose(); foeFig.delete(e.f.id); } shake = .35; flash(office.clockPos[0], 1.8, office.clockPos[1], [1.8, .25, .2], 40, .5); ui.leak(e.n, e.f.type); }
     else if (e.k === 'rat') { const f = new Fig(null, e.r.kind); f.place(e.r.x, e.r.z); ratFig.set(e.r.id, f); spark(e.r.x, .5, e.r.z, [1.2, 1, .8], 8, 1.5); }
     else if (e.k === 'ratEnd') { const f = ratFig.get(e.r.id); if (f) { spark(e.r.x, .4, e.r.z, [1, 1, 1], 6, 1.5); f.dispose(); ratFig.delete(e.r.id); } }
     else if (e.k === 'ratBite') spark(e.r.x - e.r.dx * .4, .5, e.r.z - e.r.dz * .4, [1.4, 1.2, 1], 3, 1.5);
@@ -203,7 +203,7 @@ function sound(e) {
 function draw(dt, sim) {
   T += dt;
   for (let i = 0; i < 12; i++) {
-    const f = heroFig[i], h = s.slots[i].h, mk = markers[i]; mk.g.visible = !h && s.phase !== 'won' && s.phase !== 'lost'; mk.m.opacity = (.4 + .25 * Math.sin(T * 3 + i)) * (selected != null && selected !== i ? .35 : 1);
+    const f = heroFig[i], h = s.slots[i].h, mk = markers[i]; mk.g.visible = !h && s.phase !== 'won' && s.phase !== 'lost'; mk.m.opacity = (.55 + .3 * Math.sin(T * 3 + i)) * (selected != null && selected !== i ? .3 : 1);
     if (!f || !h) continue; const a = heroAnim[i], [x, z] = MAP.slots[i], frozen = h.fz > 0;
     f.ice(frozen); f.buff(h.bAtk > 0 || h.bSpd > 0); a.pop = Math.max(0, a.pop - dt * 3);
     let px = x; if (h.pz > 0 && !frozen) { px += Math.sin(T * 60) * .04; if (rnd() < dt * 8) spark(x, 1.6, z, [1.7, 1.5, .3], 2, 1.5); }
@@ -218,7 +218,7 @@ function draw(dt, sim) {
   for (const b of bolts.values()) {
     const sh = b.sh, tot = Math.hypot(sh.tx - b.x0, sh.tz - b.z0) || 1, k = Math.min(1, Math.hypot(sh.x - b.x0, sh.z - b.z0) / tot);
     b.m.position.set(sh.x, 1.5 - .6 * k + Math.sin(k * Math.PI) * .5, sh.z); b.m.rotation.set(T * 9, T * 7, 0);
-    if (rnd() < .5) spark(sh.x, b.m.position.y, sh.z, b.col.map(v => v * .5), 1, .5, 0);
+    if (rnd() < .3) spark(sh.x, b.m.position.y, sh.z, b.col.map(v => v * .4), 1, .5, 0);
     if (sh.done) { scene.remove(b.m); bolts.delete(sh.id); }
   }
   for (let i = beams.length - 1; i >= 0; i--) { const b = beams[i]; b.t -= dt; if (b.t <= 0) { scene.remove(b.m); b.m.material.dispose(); beams.splice(i, 1); } else { const k = b.t / b.life; b.m.scale.x = b.m.scale.y = b.w * k; } }
