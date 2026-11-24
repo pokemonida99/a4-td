@@ -1,12 +1,13 @@
 // 準時下班防衛戰 3D 版｜戰鬥核心（純邏輯，不碰畫面；node 也能跑，給 tools/sim3d.mjs 用）
 // 畫面只讀狀態 s 和事件 s.ev（每一格畫面讀完自己清掉）。
-import { HERO, FOE, WAVES, RULE, RAT, LV, PHYS, elemMul, statsOf, upgradeCost } from './rules.js';
+import { HERO, FOE, WAVES, RULE, DIFF, RAT, LV, PHYS, elemMul, statsOf, upgradeCost } from './rules.js';
 
 export const DT = 1 / 30;
-export function newGame(map, seed = 1) {
+export function newGame(map, seed = 1, diff = 'normal') {
   const pts = map.path, seg = []; let len = 0;
   for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(l); len += l; }
-  const s = { t: 0, coin: RULE.coin0, lives: RULE.lives, wave: 0, phase: 'prep', slots: map.slots.map(([x, z]) => ({ x, z, h: null })), foes: [], rats: [], shots: [], ev: [], q: [], nid: 1, kills: 0, leaks: 0, pts, seg, len, seed: seed >>> 0 };
+  const D = DIFF[diff] || DIFF.normal;
+  const s = { t: 0, diff, D, coin: D.coin0, lives: RULE.lives, wave: 0, phase: 'prep', prepT: 0, skillCd: 0, skillT: 0, early: 0, slots: map.slots.map(([x, z]) => ({ x, z, h: null })), foes: [], rats: [], shots: [], ev: [], q: [], nid: 1, kills: 0, leaks: 0, pts, seg, len, seed: seed >>> 0 };
   // 每個工位離走道最近的那一點（鼠仙女的老鼠從那裡下場）
   for (const sl of s.slots) { let bd = 1e9; for (let d = 2; d < len; d += .25) { const p = posAt(s, d), dd = (p.x - sl.x) ** 2 + (p.z - sl.z) ** 2; if (dd < bd) { bd = dd; sl.pd = d; } } }
   return s;
@@ -24,7 +25,7 @@ export const placed = (s, id) => s.slots.some(sl => sl.h && sl.h.id === id);
 export const canPlace = (s, i, id) => !!HERO[id] && !s.slots[i].h && !placed(s, id) && s.coin >= HERO[id].cost && s.phase !== 'won' && s.phase !== 'lost';
 export function place(s, i, id) {
   if (!canPlace(s, i, id)) return false;
-  s.coin -= HERO[id].cost; s.slots[i].h = { id, lv: 1, cd: 0.3, fz: 0, pz: 0, imm: 0, sum: 2, cure: 0, spent: HERO[id].cost, fx: 0, fz2: 1, bAtk: 0, bSpd: 0 };
+  s.coin -= HERO[id].cost; s.slots[i].h = { id, lv: 1, cd: 0.3, fz: 0, pz: 0, imm: 0, sum: 2, cure: 0, spent: HERO[id].cost, fresh: s.phase === 'prep', fx: 0, fz2: 1, bAtk: 0, bSpd: 0 };
   s.ev.push({ k: 'place', i, id }); return true;
 }
 export const canUpgrade = (s, i) => { const h = s.slots[i].h; return !!h && h.lv < RULE.maxLv && s.coin >= upgradeCost(h.id, h.lv); };
@@ -32,19 +33,27 @@ export function upgrade(s, i) {
   if (!canUpgrade(s, i)) return false; const h = s.slots[i].h, c = upgradeCost(h.id, h.lv);
   s.coin -= c; h.spent += c; h.lv++; s.ev.push({ k: 'up', i, lv: h.lv }); return true;
 }
-export const sellValue = (s, i) => { const h = s.slots[i].h; return h ? Math.round(h.spent * RULE.sellBack) : 0; };
+// 還沒開打就調走＝全額退（放錯可以反悔）；打過一波之後退六成
+export const sellValue = (s, i) => { const h = s.slots[i].h; return h ? (h.fresh ? h.spent : Math.round(h.spent * RULE.sellBack)) : 0; };
 export function sell(s, i) { const h = s.slots[i].h; if (!h) return false; s.coin += sellValue(s, i); s.slots[i].h = null; s.ev.push({ k: 'sell', i }); return true; }
 export const canStart = s => s.phase === 'prep' && s.wave < WAVES.length;
 export function startWave(s) {
   if (!canStart(s)) return false;
   for (const [type, n, gap, delay] of WAVES[s.wave]) for (let k = 0; k < n; k++) s.q.push({ t: s.t + 1 + delay + k * gap, type });
-  s.q.sort((a, b) => a.t - b.t); s.phase = 'fight'; s.ev.push({ k: 'wave', n: s.wave + 1 }); return true;
+  // 倒數還沒走完就提早開：剩幾秒就多拿幾元
+  const bonus = s.wave > 0 ? Math.min(RULE.earlyMax, Math.floor(s.prepT)) : 0; if (bonus > 0) { s.coin += bonus; s.early += bonus; }
+  for (const sl of s.slots) if (sl.h) sl.h.fresh = false;
+  s.q.sort((a, b) => a.t - b.t); s.phase = 'fight'; s.prepT = 0; s.ev.push({ k: 'wave', n: s.wave + 1, bonus, boss: WAVES[s.wave].some(g => FOE[g[0]].leak) }); return true;
 }
+export const earlyBonus = s => (s.phase === 'prep' && s.wave > 0 ? Math.min(RULE.earlyMax, Math.floor(s.prepT)) : 0);
+// 主動技能「精神喊話」：全員出手加快幾秒
+export const canSkill = s => s.phase === 'fight' && s.skillCd <= 0 && s.slots.some(sl => sl.h);
+export function useSkill(s) { if (!canSkill(s)) return false; s.skillT = RULE.skill.dur; s.skillCd = RULE.skill.cd; s.ev.push({ k: 'skill' }); return true; }
 export function waveInfo(w) { const m = {}; for (const [type, n] of WAVES[w] || []) m[type] = (m[type] || 0) + n; return Object.entries(m).map(([type, n]) => ({ type, n, elem: FOE[type].elem })); }
 
 // ── 內部 ──
 function spawn(s, type, d = 0) {
-  const F = FOE[type], hp = Math.round(F.hp * (1 + RULE.hpGrow * s.wave)), p = posAt(s, d);
+  const F = FOE[type], hp = Math.round(F.hp * RULE.hpK[Math.min(s.wave, RULE.hpK.length - 1)] * s.D.hpK), p = posAt(s, d);
   const f = { id: s.nid++, type, d, hp, max: hp, sp: F.sp, elem: F.elem, x: p.x, z: p.z, dx: p.dx, dz: p.dz, slowK: 0, slowT: 0, aura: 0, stun: 0, burn: 0, burnT: 0, last: -9, cast: F.cast ? F.cast.every * (.5 + rand(s) * .4) : 0, block: null };
   s.foes.push(f); s.ev.push({ k: 'spawn', f }); return f;
 }
@@ -74,6 +83,8 @@ function effects(s, f, st) {
 export function step(s, dt = DT) {
   if (s.phase === 'won' || s.phase === 'lost') return;
   s.t += dt;
+  if (s.skillCd > 0) s.skillCd -= dt; if (s.skillT > 0) s.skillT -= dt;
+  if (s.phase === 'prep' && s.wave > 0) { s.prepT -= dt; if (s.prepT <= 0) startWave(s); }
   while (s.q.length && s.q[0].t <= s.t) spawn(s, s.q.shift().type);
 
   // 輔助光環：先算好每個人吃到多少
@@ -121,12 +132,12 @@ export function step(s, dt = DT) {
   s.slots.forEach((sl, i) => {
     const h = sl.h; if (!h) return; const H = HERO[h.id], st = statsOf(h.id, h.lv);
     if (h.imm > 0) h.imm -= dt;
-    if (h.fz > 0) { h.fz -= dt; return; }
-    if (h.pz > 0) h.pz -= dt;
-    const rate = (1 + h.bSpd) * (h.pz > 0 ? 0.3 : 1);
+    if (h.fz > 0) { h.fz -= dt; if (h.fz <= 0) h.imm = RULE.immune; return; }
+    if (h.pz > 0) { h.pz -= dt; if (h.pz <= 0) h.imm = RULE.immune; }
+    const rate = (1 + h.bSpd + (s.skillT > 0 ? RULE.skill.spd : 0)) * (h.pz > 0 ? 0.3 : 1);
     if (H.kind === 'cure') {
       h.cure -= dt; if (h.cure > 0) return; h.cure = 0.8;
-      s.slots.forEach((o, j) => { if (o.h && (o.h.fz > 0 || o.h.pz > 0) && (o.x - sl.x) ** 2 + (o.z - sl.z) ** 2 <= st.range ** 2) { o.h.fz = 0; o.h.pz = 0; if (h.lv >= 3) o.h.imm = 4; s.ev.push({ k: 'cure', from: i, to: j }); } });
+      s.slots.forEach((o, j) => { if (o.h && (o.h.fz > 0 || o.h.pz > 0) && (o.x - sl.x) ** 2 + (o.z - sl.z) ** 2 <= st.range ** 2) { o.h.fz = 0; o.h.pz = 0; o.h.imm = h.lv >= 3 ? 8 : RULE.immune; s.ev.push({ k: 'cure', from: i, to: j }); } });
       return;
     }
     if (H.kind === 'summon') {
@@ -146,7 +157,7 @@ export function step(s, dt = DT) {
     } else if (H.kind === 'pierce') {
       const L = Math.hypot(h.fx, h.fz2) || 1, ux = h.fx / L, uz = h.fz2 / L, hit = [];
       for (const f of s.foes) { if (f.hp <= 0 || f.d < 0.6) continue; const px = f.x - sl.x, pz = f.z - sl.z, al = px * ux + pz * uz; if (al < 0 || al > st.range) continue; if (Math.abs(px * uz - pz * ux) <= 0.75) hit.push([al, f]); }
-      hit.sort((a, b) => a[0] - b[0]); for (const [, f] of hit.slice(0, st.n)) hurt(s, f, dmg, H.elem, st);
+      hit.sort((a, b) => a[0] - b[0]); hit.slice(0, st.n).forEach(([, f], k) => hurt(s, f, dmg * [1, .7, .5][k], H.elem, st));   // 穿到後面的傷害遞減
       s.ev.push({ k: 'atk', i, kind: 'pierce', elem: H.elem, to: [[sl.x + ux * st.range, sl.z + uz * st.range]] });
     } else if (H.kind === 'blast') {
       s.shots.push({ kind: 'blast', t: 0.4, x: f0.x, z: f0.z, r: st.r, dmg, elem: H.elem, st });
@@ -181,7 +192,7 @@ export function step(s, dt = DT) {
 
   if (s.lives <= 0) { s.phase = 'lost'; s.ev.push({ k: 'lost' }); return; }
   if (s.phase === 'fight' && !s.q.length && !s.foes.length) {
-    const bonus = RULE.waveCoin(s.wave); s.coin += bonus; s.wave++; s.rats.forEach(r => (r.life = Math.min(r.life, 0.5)));
+    const bonus = RULE.waveCoin(s.wave); s.coin += bonus; s.wave++; s.prepT = RULE.prep; s.rats.forEach(r => (r.life = Math.min(r.life, 0.5)));
     if (s.wave >= WAVES.length) { s.phase = 'won'; s.ev.push({ k: 'won' }); } else { s.phase = 'prep'; s.ev.push({ k: 'clear', bonus, n: s.wave }); }
   }
 }

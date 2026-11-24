@@ -53,7 +53,7 @@ export function buildOffice(scene, seed) {
   const point = (hex, I, dist, x, y, z, haze = 0.02) => { const l = new THREE.PointLight(hex, I, dist, 2); l.position.set(x, y, z); scene.add(l); out.pointLights.push(l); l.userData.haze = haze; return l; };
 
   // ── 環境光：窗外的月光與城市光 ──
-  scene.add(new THREE.HemisphereLight(0x5a78d6, 0x1a1626, 0.6));
+  scene.add(new THREE.HemisphereLight(0x6a86de, 0x1e1a2c, 0.72));
   const fill = new THREE.DirectionalLight(0xc8d4ff, 0.5); fill.position.set(9, 5, 22); fill.target.position.set(3, 0, -1); scene.add(fill, fill.target); // 鏡頭這一側的補光，讓臉看得清楚
   const moon = new THREE.DirectionalLight(0x86a8ff, 1.25);
   moon.position.set(-6, 16, -22); moon.target.position.set(3, 0, -1); scene.add(moon, moon.target);
@@ -64,7 +64,7 @@ export function buildOffice(scene, seed) {
   const carpet = canvasTex(256, 256, (c, w, h) => {
     for (let ty = 0; ty < 4; ty++) for (let tx = 0; tx < 4; tx++) {
       const v = rnd() * 14 - 7, alt = (tx + ty) % 2 ? 6 : 0;
-      c.fillStyle = `rgb(${70 + v + alt},${84 + v + alt},${108 + v + alt})`; c.fillRect(tx * 64, ty * 64, 64, 64);
+      c.fillStyle = `rgb(${(62 + v + alt) | 0},${(74 + v + alt) | 0},${(98 + v + alt) | 0})`; c.fillRect(tx * 64, ty * 64, 64, 64);
       c.fillStyle = 'rgba(20,26,40,.5)'; c.fillRect(tx * 64, ty * 64, 64, 1); c.fillRect(tx * 64, ty * 64, 1, 64);
     }
     for (let i = 0; i < 9000; i++) { const a = rnd(); c.fillStyle = a > .5 ? `rgba(190,205,230,${.03 + rnd() * .06})` : `rgba(10,14,26,${.05 + rnd() * .1})`; c.fillRect((rnd() * w) | 0, (rnd() * h) | 0, 1, 1); }
@@ -74,8 +74,8 @@ export function buildOffice(scene, seed) {
 
   // ── 走道：磨亮的塑膠地磚 ──
   const vinyl = canvasTex(128, 128, (c, w, h) => {
-    c.fillStyle = '#b9ae96'; c.fillRect(0, 0, w, h);
-    for (let ty = 0; ty < 4; ty++) for (let tx = 0; tx < 4; tx++) { const v = rnd() * 18 - 9; c.fillStyle = `rgb(${186 + v},${175 + v},${151 + v})`; c.fillRect(tx * 32 + 1, ty * 32 + 1, 31, 31); }
+    c.fillStyle = '#aab4c4'; c.fillRect(0, 0, w, h);
+    for (let ty = 0; ty < 4; ty++) for (let tx = 0; tx < 4; tx++) { const v = rnd() * 18 - 9; c.fillStyle = `rgb(${(176 + v) | 0},${(186 + v) | 0},${(204 + v) | 0})`; c.fillRect(tx * 32 + 1, ty * 32 + 1, 31, 31); }
     for (let i = 0; i < 900; i++) { c.fillStyle = rnd() > .5 ? `rgba(255,250,235,${rnd() * .12})` : `rgba(60,50,40,${rnd() * .16})`; c.fillRect((rnd() * w) | 0, (rnd() * h) | 0, 1 + (rnd() * 3 | 0), 1); }
   });
   const PW = 0.62, pp = [], pu = [], pn = [];
@@ -86,7 +86,7 @@ export function buildOffice(scene, seed) {
   }
   const pg = new THREE.BufferGeometry();
   pg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pp), 3)); pg.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(pu), 2)); pg.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(pn), 3));
-  const road = new THREE.Mesh(pg, new THREE.MeshLambertMaterial({ map: vinyl, emissive: 0xffffff, emissiveMap: vinyl, emissiveIntensity: 0.035 })); road.receiveShadow = true; scene.add(road);
+  const road = new THREE.Mesh(pg, new THREE.MeshLambertMaterial({ map: vinyl, emissive: 0xffffff, emissiveMap: vinyl, emissiveIntensity: 0.07 })); road.receiveShadow = true; scene.add(road);
 
   // ── 浮島的切面：地板、樓板、鋼樑、管線 ──
   const cx = (X0 + X1) / 2, cz = (Z0 + Z1) / 2, sw = X1 - X0, sd = Z1 - Z0;
@@ -170,8 +170,8 @@ export function buildOffice(scene, seed) {
   const desk = (sx, sz, k) => {
     const On = new Build(rnd), Off = new Build(rnd);
     const z = sz - .82, wood = k % 2 ? 0xb07a48 : 0xa56f40;
-    B.box(sx, 0, sz - 1.22, 2.36, 1.22, .08, 0x5b7391); B.box(sx, 1.22, sz - 1.22, 2.4, .05, .12, 0xc9d2dc, { jit: 0 });     // 隔板
-    B.box(sx - 1.2, 0, z - .02, .08, 1.22, .86, 0x5b7391);
+    B.box(sx, 0, sz - 1.22, 2.36, .8, .08, 0x5b7391); B.box(sx, .8, sz - 1.22, 2.4, .05, .12, 0xc9d2dc, { jit: 0 });     // 隔板（矮一點，才不會擋到後面的走道）
+    B.box(sx - 1.2, 0, z - .02, .08, .8, .86, 0x5b7391);
     B.box(sx, .74, z, 1.95, .07, .78, wood, { grad: 1 }); B.box(sx - .93, 0, z, .06, .74, .72, 0x7a5232); B.box(sx + .93, 0, z, .06, .74, .72, 0x7a5232);
     B.box(sx + .62, .06, z, .5, .62, .66, 0x8b939e);
     B.box(sx + .42, .81, z - .2, .1, .16, .08, 0x1c1f26, { jit: 0 }); B.box(sx + .42, .95, z - .18, .76, .5, .05, 0x15171d, { jit: 0, grad: 1 });

@@ -8,14 +8,15 @@ import { makeChar, makeRat, pose, poseRat, faceTo, CAST } from './chars.js';
 import * as C from './core.js';
 import { HERO, FOE, ELEM, MAP } from './rules.js';
 import { makeUI } from './ui.js';
+import { sfx, bgm, jingle } from './audio.js';
 
 const Q = new URLSearchParams((location.hash || location.search).slice(1));
 const num = (k, d) => (Q.has(k) ? +Q.get(k) : d);
 const RAD = Math.PI / 180;
-const cam0 = { yaw: num('yaw', 18) * RAD, pitch: num('pitch', 34) * RAD, fit: num('fit', 35) };
+const cam0 = { yaw: num('yaw', 12) * RAD, pitch: num('pitch', 42) * RAD, fit: num('fit', 36.5) };   // 俯角 42°：三條走道都看得到
 let yaw = cam0.yaw, quality = num('q', 1);
 const PITCH = cam0.pitch, PPU = 40;
-const TARGET = new THREE.Vector3(num('tx', 2.7), 0.6, num('tz', -1.2));
+const TARGET = new THREE.Vector3(num('tx', 2.6), 0.6, num('tz', -1.9));
 
 const canvas = document.getElementById('gl');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, stencil: false, powerPreference: 'high-performance' });
@@ -36,10 +37,11 @@ function placeCam() {
   cam.lookAt(TARGET); cam.updateMatrixWorld(); post.focusDist = D;
 }
 function resize() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 3); vw = innerWidth; vh = innerHeight;
+  // 用畫布實際排出來的大小，不用 innerWidth／innerHeight：手機轉向時那兩個值常常還是舊的，畫面會被壓扁
+  const dpr = Math.min(window.devicePixelRatio || 1, 3); vw = canvas.clientWidth || innerWidth; vh = canvas.clientHeight || innerHeight;
   const dw = Math.max(8, Math.floor(vw * dpr)), dh = Math.max(8, Math.floor(vh * dpr));
   // 畫面比較方（或直放）的時候改用高度去配，至少看得到整個場景
-  const fit = Math.max(cam0.fit, 19.5 * dw / dh), viewH = fit * dh / dw;
+  const fit = Math.max(cam0.fit, 17.6 * dw / dh), viewH = fit * dh / dw;
   viewH0 = viewH; cam.left = -fit / 2; cam.right = fit / 2; cam.top = viewH / 2 - lift * viewH; cam.bottom = -viewH / 2 - lift * viewH; cam.updateProjectionMatrix();
   let iw = Math.round(fit * PPU), ih = Math.round(viewH * PPU);
   const k = Math.min(1, dw / iw, 1500 / iw) * quality;
@@ -63,20 +65,29 @@ const markers = MAP.slots.map(([x, z]) => {
   g.position.set(x, .05, z); scene.add(g); return { g, m };
 });
 const selRing = new THREE.Mesh(ringGeo(.62, .74), addMat([1.6, 1.1, 0.35], .9)); selRing.visible = false; scene.add(selRing);
-const rangeRing = new THREE.Mesh(ringGeo(.985, 1), addMat([1.2, 1.2, 1.3], .8)), rangeFill = new THREE.Mesh(new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), addMat([0.5, 0.6, 0.9], .1));
+const rangeRing = new THREE.Mesh(ringGeo(.975, 1), addMat([1.2, 1.2, 1.3], .9)), rangeFill = new THREE.Mesh(new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), addMat([0.5, 0.6, 0.9], .1));
 rangeRing.visible = rangeFill.visible = false; scene.add(rangeRing, rangeFill);
+rangeRing.material.depthTest = false; rangeRing.renderOrder = 5; selRing.material.depthTest = false; selRing.renderOrder = 6;   // 射程圈不被桌子擋住
 function showRange(i, r, rgb) {
   if (i == null) { rangeRing.visible = rangeFill.visible = false; return; }
   const [x, z] = MAP.slots[i]; rangeRing.visible = rangeFill.visible = true; rangeRing.position.set(x, .06, z); rangeFill.position.set(x, .055, z); rangeRing.scale.set(r, 1, r); rangeFill.scale.set(r, 1, r);
   if (rgb) { rangeRing.material.color.setRGB(rgb[0], rgb[1], rgb[2]); rangeFill.material.color.setRGB(rgb[0] * .4, rgb[1] * .4, rgb[2] * .4); }
 }
+// 走道上的方向箭頭（電梯 → 打卡機），備戰時還有一顆光點沿路跑一遍
+{
+  const pos = []; let d = 1.6; const probe = C.newGame(MAP, 1);
+  for (; d < probe.len - .6; d += 1.7) { const p = C.posAt(probe, d), nx = -p.dz, nz = p.dx; pos.push(p.x + p.dx * .3, .035, p.z + p.dz * .3, p.x - p.dx * .2 + nx * .26, .035, p.z - p.dz * .2 + nz * .26, p.x - p.dx * .2 - nx * .26, .035, p.z - p.dz * .2 - nz * .26); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+  const m = addMat([0.55, 0.75, 1.1], .3); m.side = THREE.DoubleSide; scene.add(new THREE.Mesh(g, m));
+}
+const runner = new THREE.Mesh(new THREE.BoxGeometry(.3, .3, .3), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.2, 2.0, 2.6) })); runner.visible = false; scene.add(runner);
 let selected = null;
 function select(i) { selected = i; selRing.visible = i != null; if (i != null) selRing.position.set(MAP.slots[i][0], .07, MAP.slots[i][1]); if (i == null) showRange(null); }
 
 // ── 小人 ──
 const blobGeo = new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2);
 const blobMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.34, depthWrite: false });
-const barGeo = new THREE.BoxGeometry(1, .1, .04), barBg = new THREE.MeshBasicMaterial({ color: 0x05070c }), gemGeo = new THREE.BoxGeometry(.2, .2, .2);
+const barGeo = new THREE.BoxGeometry(1, .1, .04), barBg = new THREE.MeshBasicMaterial({ color: 0x05070c }), gemGeo = new THREE.BoxGeometry(.28, .28, .28);
 const EMAT = {}; const emat = e => (EMAT[e] ??= new THREE.MeshBasicMaterial({ color: new THREE.Color(...ELEM[e].rgb.map(v => v * 1.5)) }));
 const foeRingGeo = new THREE.RingGeometry(.42, .56, 20).rotateX(-Math.PI / 2), foeRingMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, .28, .2), transparent: true, opacity: .75, blending: THREE.AdditiveBlending, depthWrite: false });
 const iceGeo = new THREE.BoxGeometry(1.25, 2.1, 1.25), iceMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.35, 0.8, 1.3), transparent: true, opacity: .42, depthWrite: false });
@@ -93,7 +104,7 @@ class Fig {
   flash(v) { this.c.mat.emissive.setScalar(v * 6); }
   bar(elem) {
     this.bg = new THREE.Mesh(barGeo, barBg); this.fg = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: 0x66e07a })); this.fg.position.z = .03; this.fg.scale.y = .7; this.bg.scale.x = 1.06; this.bg.visible = this.fg.visible = false; this.top.add(this.bg, this.fg);
-    if (elem && elem !== 'none') { const g = new THREE.Mesh(gemGeo, emat(elem)); g.rotation.z = Math.PI / 4; g.position.x = -.72; this.top.add(g); }
+    if (elem && elem !== 'none') { const g = new THREE.Mesh(gemGeo, emat(elem)); g.rotation.z = Math.PI / 4; g.position.x = -.8; this.top.add(g); }
     // 腳下一圈紅光：燈還沒亮的地方也看得出哪裡有敵人
     const r = new THREE.Mesh(foeRingGeo, foeRingMat); r.position.y = .045; this.w.add(r);
   }
@@ -163,20 +174,38 @@ function onEvents() {
     else if (e.k === 'ratBite') spark(e.r.x - e.r.dx * .4, .5, e.r.z - e.r.dz * .4, [1.4, 1.2, 1], 3, 1.5);
     else if (e.k === 'cast') { const c = e.kind === 'freeze' ? [0.4, 0.9, 1.6] : [1.7, 1.5, 0.3]; for (const i of e.to) { const [x, z] = MAP.slots[i]; beam(e.f.x, 1.6, e.f.z, x, 1.2, z, c, .09, .3); spark(x, 1.2, z, c, 14, 2.4); } ui.status(e.kind, e.to); }
     else if (e.k === 'cure') { const [x0, z0] = MAP.slots[e.from], [x, z] = MAP.slots[e.to], c = ELEM.cure.rgb; beam(x0, 1.5, z0, x, 1.3, z, c, .08, .3); spark(x, 1.2, z, c, 16, 2.2, 3); boom(x, z, .9, c); }
+    else if (e.k === 'skill') { for (let i = 0; i < 12; i++) if (heroFig[i]) { const [x, z] = MAP.slots[i]; boom(x, z, 1.1, [1.6, 1.2, .4]); spark(x, 1.4, z, [1.6, 1.3, .5], 8, 2, 3); heroAnim[i].pop = .6; } shake = .15; ui.phase(e); }
     else if (e.k === 'wave' || e.k === 'clear' || e.k === 'won' || e.k === 'lost') ui.phase(e);
+    sound(e);
   }
   s.ev.length = 0;
+}
+
+// 事件 → 音效（全部是專案自己合成的聲音）
+const ATK_SFX = { slash: 'slash', fist: 'hit', fire: 'explosion', water: 'break', wind: 'whoosh', light: 'holy_cast', dark: 'dark_blast' };
+function sound(e) {
+  if (e.k === 'atk') { if (e.kind === 'melee' || e.kind === 'pierce') sfx(ATK_SFX[e.elem] || 'hit', e.kind === 'pierce' ? .25 : .32, 1, .09); else if (e.kind === 'summon') sfx(Math.random() < .5 ? 'squeak_1' : 'squeak_2', .4); }
+  else if (e.k === 'boom') sfx(e.r > 1.2 ? 'explosion_big' : ATK_SFX[e.elem] || 'hit', e.r > .8 ? .4 : .28, 1, .1);
+  else if (e.k === 'die') sfx(e.f.max > 600 ? 'boss_down' : 'pop', e.f.max > 600 ? .7 : .35, 1, .05);
+  else if (e.k === 'leak') sfx('weak', .8);
+  else if (e.k === 'place') sfx('card', .6);
+  else if (e.k === 'cast') sfx('stun', .6);
+  else if (e.k === 'cure') sfx('heal', .5);
+  else if (e.k === 'wave') { sfx(e.boss ? 'boss_appear' : 'encounter', .6); bgm(e.n === 12 ? 'boss' : 'battle'); }
+  else if (e.k === 'clear') { sfx('fanfare', .5); bgm('map'); }
+  else if (e.k === 'won') jingle('victory');
+  else if (e.k === 'lost') jingle('lose');
 }
 
 // ── 每一格畫面 ──
 function draw(dt, sim) {
   T += dt;
   for (let i = 0; i < 12; i++) {
-    const f = heroFig[i], h = s.slots[i].h, mk = markers[i]; mk.g.visible = !h && s.phase !== 'won' && s.phase !== 'lost'; mk.m.opacity = .35 + .25 * Math.sin(T * 3 + i);
+    const f = heroFig[i], h = s.slots[i].h, mk = markers[i]; mk.g.visible = !h && s.phase !== 'won' && s.phase !== 'lost'; mk.m.opacity = (.4 + .25 * Math.sin(T * 3 + i)) * (selected != null && selected !== i ? .35 : 1);
     if (!f || !h) continue; const a = heroAnim[i], [x, z] = MAP.slots[i], frozen = h.fz > 0;
     f.ice(frozen); a.pop = Math.max(0, a.pop - dt * 3);
     let px = x; if (h.pz > 0 && !frozen) { px += Math.sin(T * 60) * .04; if (rnd() < dt * 8) spark(x, 1.6, z, [1.7, 1.5, .3], 2, 1.5); }
-    f.place(px, z); f.w.scale.setScalar(1 + a.pop * .25);
+    f.place(px, z); f.w.scale.setScalar(1 + a.pop * .25); f.flash(s.skillT > 0 ? .012 + .006 * Math.sin(T * 12) : 0); if (s.skillT > 0 && rnd() < dt * 5) spark(x, 1.8, z, [1.6, 1.2, .4], 1, .8, 2.5);
     if (frozen) continue;
     const idle = !s.foes.length, dx = idle ? Math.sin(yaw + .25) : h.fx || .3, dz = idle ? Math.cos(yaw + .25) : h.fz2 || 1;
     if (a.atk >= 0) { a.atk += sim / (HERO[h.id].cd < .45 ? .3 : .52); if (a.atk >= 1) a.atk = -1; }
@@ -212,6 +241,7 @@ function draw(dt, sim) {
   }
   pGeo.attributes.position.needsUpdate = true; pGeo.attributes.color.needsUpdate = true;
   selRing.rotation.y = T * .8;
+  { const on = s.phase === 'prep' && !s.foes.length, d = ((T * 11) % (s.len + 30)); runner.visible = on && d < s.len - .5; if (runner.visible) { const p = C.posAt(s, d); runner.position.set(p.x, .5, p.z); runner.rotation.set(T * 5, T * 4, 0); if (rnd() < .7) spark(p.x, .5, p.z, [.4, .8, 1.1], 1, .4, 0); } }
   if (shake > 0) { shake = Math.max(0, shake - dt); const k = shake * .35; cam.position.x += (rnd() - .5) * k; cam.position.y += (rnd() - .5) * k; cam.updateMatrixWorld(); }
 }
 
@@ -247,12 +277,13 @@ canvas.addEventListener('click', e => {
 });
 
 const G = {
-  get s() { return s; }, C, project, select, showRange, get selected() { return selected; }, speed: 1, paused: false, lift: 0,
-  restart() {
+  get s() { return s; }, C, project, select, showRange, get selected() { return selected; }, speed: 1, paused: false, hold: false, tutHold: false, lift: 0,
+  restart(diff = 'normal') {
     for (let i = 0; i < 12; i++) { heroFig[i]?.dispose(); heroFig[i] = null; office.desks[i].set(false); }
     for (const f of foeFig.values()) f.dispose(); foeFig.clear(); for (const f of ratFig.values()) f.dispose(); ratFig.clear(); for (const b of bolts.values()) scene.remove(b.m); bolts.clear();
-    s = C.newGame(MAP, (Math.random() * 1e9) | 0); select(null); office.clockLight.color.set(0xffb14a);
+    s = C.newGame(MAP, (Math.random() * 1e9) | 0, diff); select(null); office.clockLight.color.set(0xffb14a);
   },
+  view: () => ({ aspect: (cam.right - cam.left) / (cam.top - cam.bottom), slab: [[B0.x0, B0.z0], [B0.x1, B0.z0], [B0.x1, B0.z1], [B0.x0, B0.z1]].map(([x, z]) => project(x, 0, z)) }),
   slotScreen: i => project(MAP.slots[i][0], 1.0, MAP.slots[i][1]), elevScreen: () => project(MAP.path[0][0], 1.4, MAP.path[0][1] + 1.6), clockScreen: () => project(office.clockPos[0], 1.8, office.clockPos[1]),
 };
 window.__g = G;
@@ -263,14 +294,16 @@ function boot() {
   let last = performance.now(), acc = 0, slow = 0, frames = 0;
   const loop = now => {
     const dt = Math.min(.05, (now - last) / 1000); last = now; let sim = 0;
-    if (!G.paused) { acc += dt * G.speed; while (acc >= C.DT) { C.step(s, C.DT); acc -= C.DT; sim += C.DT; onEvents(); } } else onEvents();
+    if (canvas.clientWidth !== vw || canvas.clientHeight !== vh) { resize(); placeCam(); }   // 每一格都對一次尺寸，不靠 resize 事件
+    // 選單開著、教學在講話的時候時間先停（手機上一邊看卡片一邊顧戰場太忙）
+    if (!G.paused && !G.hold && !G.tutHold) { acc += dt * G.speed; while (acc >= C.DT) { C.step(s, C.DT); acc -= C.DT; sim += C.DT; onEvents(); } } else onEvents();
     // 下面的面板打開時，把場景往上推，選到的位子才不會被蓋住
     if (Math.abs(G.lift - lift) > .001) { lift += (G.lift - lift) * Math.min(1, dt * 9); cam.top = viewH0 / 2 - lift * viewH0; cam.bottom = -viewH0 / 2 - lift * viewH0; cam.updateProjectionMatrix(); }
     placeCam(); draw(dt, sim); ui.update(dt);
     post.lights(office.pointLights.concat(dyn.map(d => d.l)));
     post.render(now / 1000);
     // 太慢就自動降一點解析度（只降不升，免得忽大忽小）
-    frames++; if (dt > .034) slow++; if (frames >= 90) { if (slow > 45 && quality > .55) { quality = Math.max(.55, quality - .15); resize(); } frames = slow = 0; }
+    frames++; if (dt > .034) slow++; if (frames >= 90) { if (slow > 45) { if (quality > .55) { quality = Math.max(.55, quality - .15); resize(); } else post.nodof = true; } frames = slow = 0; }   // 降到底還是慢，就關掉景深模糊
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);

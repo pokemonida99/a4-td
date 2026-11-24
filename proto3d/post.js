@@ -161,7 +161,7 @@ void main(){
     pass(atmo, rt.atmo);
     u = dof.uniforms; u.tColor.value = rt.atmo.texture; u.tDepth.value = rt.scene.depthTexture; u.uPx.value.copy(px);
     const zr = cam.far - cam.near;
-    u.uDof.value.set((P.focusDist - cam.near) / zr, (P.dofBand ?? 2.6) / zr, (P.dofRamp ?? 7.5) / zr, P.nodof ? 0.6 : Math.max(2, P.ih * (P.dofMax ?? 0.012)));
+    u.uDof.value.set((P.focusDist - cam.near) / zr, (P.dofBand ?? 3.6) / zr, (P.dofRamp ?? 7) / zr, P.nodof ? 0.6 : Math.max(2, P.ih * (P.dofMax ?? 0.009)));
     pass(dof, rt.dof);
     u = bright.uniforms; u.tColor.value = rt.dof.texture; u.uPx.value.copy(px); pass(bright, rt.bA);
     u = blur.uniforms;
