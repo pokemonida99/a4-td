@@ -33,5 +33,6 @@ export function jingle(k) { if (!actx) return; const buf = SND['bgm_' + k]; if (
 export function stopBgm(t = 0.3) { if (!bgmNode) return; const o = bgmNode; o._g.gain.setTargetAtTime(0, actx.currentTime, t); setTimeout(() => { try { o.stop(); } catch (e) { /* 已經停了 */ } }, 1800); bgmNode = null; bgmKey = ''; }
 export function setMute(on) { muted = on; if (master) master.gain.value = on ? 0 : 1; try { localStorage.setItem('a4td3d_mute', on ? '1' : '0'); } catch (e) { /* 存不了就算了 */ } }
 export const isMuted = () => muted;
+export const loaded = () => Object.keys(SND).length;      // 測試用：解好幾個聲音
 // 頁面切到背景就先停，回來再繼續（手機鎖屏不會一直響）
 document.addEventListener('visibilitychange', () => { if (!actx) return; if (document.hidden) actx.suspend(); else actx.resume(); });

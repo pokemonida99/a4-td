@@ -8,7 +8,7 @@ import { makeChar, makeRat, pose, poseRat, faceTo, CAST } from './chars.js';
 import * as C from './core.js';
 import { HERO, FOE, ELEM, MAP } from './rules.js';
 import { makeUI } from './ui.js';
-import { sfx, bgm, jingle } from './audio.js';
+import { sfx, bgm, jingle, loaded as sndLoaded } from './audio.js';
 
 const Q = new URLSearchParams((location.hash || location.search).slice(1));
 const num = (k, d) => (Q.has(k) ? +Q.get(k) : d);
@@ -91,6 +91,7 @@ const barGeo = new THREE.BoxGeometry(1, .1, .04), barBg = new THREE.MeshBasicMat
 const EMAT = {}; const emat = e => (EMAT[e] ??= new THREE.MeshBasicMaterial({ color: new THREE.Color(...ELEM[e].rgb.map(v => v * 1.5)) }));
 const foeRingGeo = new THREE.RingGeometry(.42, .56, 20).rotateX(-Math.PI / 2), foeRingMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, .28, .2), transparent: true, opacity: .75, blending: THREE.AdditiveBlending, depthWrite: false });
 const iceGeo = new THREE.BoxGeometry(1.25, 2.1, 1.25), iceMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.35, 0.8, 1.3), transparent: true, opacity: .42, depthWrite: false });
+const buffMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.0, 0.7, 1.3) });
 const pipGeo = new THREE.BoxGeometry(.13, .13, .13), pipMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.6, 0.4) });
 class Fig {
   constructor(spec, rat) {
@@ -110,6 +111,7 @@ class Fig {
   }
   hp(r) { if (!this.fg) return; const v = r < .999; this.bg.visible = this.fg.visible = v; if (v) { r = Math.max(.02, r); this.fg.scale.x = r; this.fg.position.x = -(1 - r) / 2; this.fg.material.color.setRGB(r < .35 ? 1.3 : .4, r < .35 ? .35 : 1.1, .35); } }
   pips(n) { if (this.pg) this.top.remove(this.pg); this.pg = new THREE.Group(); for (let i = 0; i < n; i++) { const m = new THREE.Mesh(pipGeo, pipMat); m.position.x = (i - (n - 1) / 2) * .2; m.rotation.z = Math.PI / 4; this.pg.add(m); } this.top.add(this.pg); }
+  buff(on) { if (on && !this.bp) { this.bp = new THREE.Mesh(pipGeo, buffMat); this.bp.position.set(.62, -.02, 0); this.bp.scale.setScalar(1.3); this.top.add(this.bp); } if (this.bp) { this.bp.visible = on; this.bp.rotation.y += .08; } }
   ice(on) { if (on && !this.iceM) { this.iceM = new THREE.Mesh(iceGeo, iceMat); this.iceM.position.y = 1.05; this.w.add(this.iceM); } if (this.iceM) this.iceM.visible = on; }
   dispose() { scene.remove(this.w); this.c.root.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); this.c.mat.dispose(); if (this.fg) this.fg.material.dispose(); }
 }
@@ -152,7 +154,7 @@ function onEvents() {
     if (e.k === 'place') { const f = heroFig[e.i] = new Fig(CAST[e.id]); const [x, z] = MAP.slots[e.i]; f.place(x, z); f.c.face = yaw + .2; f.c.root.rotation.y = f.c.face; f.pips(1); office.desks[e.i].set(true); heroAnim[e.i].pop = 1; heroAnim[e.i].atk = -1; spark(x, 1, z, [1.5, 1.1, .5], 16, 2.4); flash(x, 1.4, z, [1.5, 1, .5], 12, .3); }
     else if (e.k === 'sell') { heroFig[e.i]?.dispose(); heroFig[e.i] = null; office.desks[e.i].set(false); }
     else if (e.k === 'up') { heroFig[e.i].pips(e.lv); heroAnim[e.i].pop = 1; const [x, z] = MAP.slots[e.i]; spark(x, 1.2, z, [1.6, 1.3, .4], 22, 2.8, 3); flash(x, 1.5, z, [1.6, 1.3, .4], 16, .35); boom(x, z, 1.2, [1.6, 1.3, .4]); }
-    else if (e.k === 'spawn') { const f = new Fig(CAST[e.f.type]); f.bar(e.f.elem); if (!CAST[e.f.type].ghost) f.c.mat.userData.self.value = .8; f.c.face = Math.atan2(e.f.dx, e.f.dz); f.place(e.f.x, e.f.z); foeFig.set(e.f.id, f); e.f.ph = rnd() * 8; }
+    else if (e.k === 'spawn') { const f = new Fig(CAST[e.f.type]); f.bar(e.f.elem); if (!CAST[e.f.type].ghost) f.c.mat.userData.self.value = .8; f.c.face = Math.atan2(e.f.dx, e.f.dz); f.place(e.f.x, e.f.z); foeFig.set(e.f.id, f); e.f.ph = rnd() * 8; if (FOE[e.f.type].leak) { ui.toast(`<b>${FOE[e.f.type].name}</b> 來了！漏掉會扣 ${FOE[e.f.type].leak} 條命`, 3.5); shake = .3; } }
     else if (e.k === 'atk') {
       const a = heroAnim[e.i], [x, z] = MAP.slots[e.i]; a.atk = 0;
       if (e.kind === 'melee') for (const [tx, tz] of e.to) { arc(tx, tz, col); spark(tx, 1, tz, col, 5, 2); }
@@ -203,7 +205,7 @@ function draw(dt, sim) {
   for (let i = 0; i < 12; i++) {
     const f = heroFig[i], h = s.slots[i].h, mk = markers[i]; mk.g.visible = !h && s.phase !== 'won' && s.phase !== 'lost'; mk.m.opacity = (.4 + .25 * Math.sin(T * 3 + i)) * (selected != null && selected !== i ? .35 : 1);
     if (!f || !h) continue; const a = heroAnim[i], [x, z] = MAP.slots[i], frozen = h.fz > 0;
-    f.ice(frozen); a.pop = Math.max(0, a.pop - dt * 3);
+    f.ice(frozen); f.buff(h.bAtk > 0 || h.bSpd > 0); a.pop = Math.max(0, a.pop - dt * 3);
     let px = x; if (h.pz > 0 && !frozen) { px += Math.sin(T * 60) * .04; if (rnd() < dt * 8) spark(x, 1.6, z, [1.7, 1.5, .3], 2, 1.5); }
     f.place(px, z); f.w.scale.setScalar(1 + a.pop * .25); f.flash(s.skillT > 0 ? .012 + .006 * Math.sin(T * 12) : 0); if (s.skillT > 0 && rnd() < dt * 5) spark(x, 1.8, z, [1.6, 1.2, .4], 1, .8, 2.5);
     if (frozen) continue;
@@ -211,7 +213,7 @@ function draw(dt, sim) {
     if (a.atk >= 0) { a.atk += sim / (HERO[h.id].cd < .45 ? .3 : .52); if (a.atk >= 1) a.atk = -1; }
     if (a.atk >= 0) f.act('atk', dx, dz, 0, a.atk, dt); else f.act('idle', dx, dz, T * 5 + a.ph, 0, dt * (idle ? .5 : 1));
   }
-  for (const e of s.foes) { const f = foeFig.get(e.id); if (!f) continue; const hit = Math.max(0, .12 - (s.t - e.last)); f.act('walk', e.dx, e.dz, e.stun > 0 || e.block ? e.ph : e.ph + e.d * 3.9, 0, dt); f.place(e.x, e.z); f.flash(hit * 4); f.hp(e.hp / e.max); if (e.burnT > 0 && rnd() < dt * 10) spark(e.x, 1.2, e.z, [1.7, .6, .2], 1, .8, 2.5); }
+  for (const e of s.foes) { const f = foeFig.get(e.id); if (!f) continue; const hit = Math.max(0, .12 - (s.t - e.last)); f.act('walk', e.dx, e.dz, e.stun > 0 || e.block ? e.ph : e.ph + e.d * 3.9, 0, dt); f.place(e.x, e.z); f.flash(hit * 4); f.hp(e.hp / e.max); if (e.burnT > 0 && rnd() < dt * 10) spark(e.x, 1.2, e.z, [1.7, .6, .2], 1, .8, 2.5); if ((e.aura > 0 || e.slowK > 0) && rnd() < dt * 6) spark(e.x, .3, e.z, [.3, .8, 1.6], 1, .5, .3); if (e.stun > 0 && rnd() < dt * 12) spark(e.x, f.h + .3, e.z, [1.7, 1.5, .3], 1, 1.2, .5); }
   for (const r of s.rats) { const f = ratFig.get(r.id); if (f) { f.act('walk', r.dx, r.dz, T + r.id, 0, dt); f.place(r.x, r.z); } }
   for (const b of bolts.values()) {
     const sh = b.sh, tot = Math.hypot(sh.tx - b.x0, sh.tz - b.z0) || 1, k = Math.min(1, Math.hypot(sh.x - b.x0, sh.z - b.z0) / tot);
@@ -283,6 +285,7 @@ const G = {
     for (const f of foeFig.values()) f.dispose(); foeFig.clear(); for (const f of ratFig.values()) f.dispose(); ratFig.clear(); for (const b of bolts.values()) scene.remove(b.m); bolts.clear();
     s = C.newGame(MAP, (Math.random() * 1e9) | 0, diff); select(null); office.clockLight.color.set(0xffb14a);
   },
+  sndLoaded,
   view: () => ({ aspect: (cam.right - cam.left) / (cam.top - cam.bottom), slab: [[B0.x0, B0.z0], [B0.x1, B0.z0], [B0.x1, B0.z1], [B0.x0, B0.z1]].map(([x, z]) => project(x, 0, z)) }),
   slotScreen: i => project(MAP.slots[i][0], 1.0, MAP.slots[i][1]), elevScreen: () => project(MAP.path[0][0], 1.4, MAP.path[0][1] + 1.6), clockScreen: () => project(office.clockPos[0], 1.8, office.clockPos[1]),
 };

@@ -131,6 +131,11 @@ small { color: var(--dim); font-size: .78rem; margin-left: .15rem; }
 .stars.sm { font-size: .8rem; letter-spacing: 0; display: block; }
 .end .tip { color: var(--amber); max-width: 26rem; font-size: .95rem; }
 
+.held { position: absolute; right: .5rem; bottom: 100%; margin-bottom: .3rem; font-size: .75rem; color: var(--dim); background: rgba(12, 17, 29, .85); padding: 0 .4rem; }
+.panel { position: absolute; }
+
+.new { background: var(--amber); color: #2a1a05; padding: 0 .3rem; font-size: .78rem; }
+
 /* 飄字 */
 #uFloats { position: absolute; inset: 0; overflow: hidden; }
 .fl { position: absolute; transform: translate(-50%, -50%); font-weight: 700; font-size: .95rem; color: #fff; text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000; animation: fl .7s ease-out forwards; white-space: nowrap; }

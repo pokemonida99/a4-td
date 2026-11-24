@@ -50,6 +50,7 @@ export function makeUI(G) {
   const $ = id => root.querySelector('#' + id);
   const P = G.portraits, panel = $('uPanel');
   let mode = null, slot = -1, pickId = null, last = {}, tut = null, cardTap = null, started = false;
+  const noTut = new URLSearchParams((location.hash || location.search).slice(1)).has('notut');
   const seen = {};
 
   const chartHTML = () => `<div class="cyc">${eImg('water')}<b>水</b><i>剋</i>${eImg('fire')}<b>火</b><i>剋</i>${eImg('wind')}<b>風</b><i>剋</i>${eImg('water')}<b>水</b></div>
@@ -81,7 +82,7 @@ export function makeUI(G) {
 
   function openBuild(i) {
     mode = 'build'; slot = i; G.select(i); G.lift = .3; G.hold = true; panel.hidden = false; panel.className = 'panel plate build'; $('uFoe').hidden = true;
-    panel.innerHTML = `<div class="detail" id="uDetail"></div><div class="cards" id="uCards"></div>`;
+    panel.innerHTML = `<div class="detail" id="uDetail"></div><div class="cards" id="uCards"></div><span class="held">時間暫停中</span>`;
     const cards = panel.querySelector('#uCards'), s = G.s;
     const mu = Object.fromEntries(HERO_ORDER.map(id => [id, matchup(id)]));
     const order = [...HERO_ORDER].sort((a, b) => (G.C.placed(s, a) - G.C.placed(s, b)) || ((mu[b].good >= .3) - (mu[a].good >= .3)) || ((mu[a].bad >= .5) - (mu[b].bad >= .5)));
@@ -105,8 +106,8 @@ export function makeUI(G) {
   function openHero(i) {
     const h = G.s.slots[i].h; if (!h) return close(); mode = 'hero'; slot = i; G.select(i); G.lift = .14; G.hold = true; panel.hidden = false; panel.className = 'panel plate hero'; $('uFoe').hidden = true;
     const st = statsOf(h.id, h.lv), nx = h.lv < RULE.maxLv ? statsOf(h.id, h.lv + 1) : null, uc = upgradeCost(h.id, h.lv);
-    panel.innerHTML = `<div class="detail"><img class="por big" src="${P[h.id]}" alt=""><div class="info"><div class="nm">${st.name}<small>${st.job}</small><span class="lv">${'◆'.repeat(h.lv)}${'◇'.repeat(RULE.maxLv - h.lv)}</span>${elemTag(st.elem)}${versus(st.elem)}</div><div class="stats">${statRow(st)}</div><div class="note">${st.note}${nx ? `<span class="nx">　升級後：${nx.note}${nx.atk ? `（${ic('dmg')}${st.atk}→${nx.atk}）` : ''}</span>` : ''}</div></div>
-      ${nx ? `<button class="buy" id="uUp">${ic('promote')}<span>升級</span><b>${ic('coin')}${uc}</b></button>` : `<div class="max">滿級</div>`}<button class="sell" id="uSell">${ic('refund')}<span>${h.fresh ? '撤回' : '調走'}</span><b>+${G.C.sellValue(G.s, i)}</b></button><button class="x" aria-label="關閉">×</button></div>`;
+    panel.innerHTML = `<div class="detail"><img class="por big" src="${P[h.id]}" alt=""><div class="info"><div class="nm">${st.name}<small>${st.job}</small><span class="lv">${'◆'.repeat(h.lv)}${'◇'.repeat(RULE.maxLv - h.lv)}</span>${elemTag(st.elem)}${versus(st.elem)}</div><div class="stats">${statRow(st)}${h.bAtk > 0 || h.bSpd > 0 ? `<span class="hint good">被加持${h.bAtk > 0 ? ` 攻+${pct(h.bAtk)}` : ''}${h.bSpd > 0 ? ` 速+${pct(h.bSpd)}` : ''}</span>` : ''}</div><div class="note">${st.note}${nx ? `<span class="nx">　升級後：${nx.note}${nx.atk ? `（${ic('dmg')}${st.atk}→${nx.atk}）` : ''}</span>` : ''}</div></div>
+      ${nx ? `<button class="buy" id="uUp">${ic('promote')}<span>升級</span><b>${ic('coin')}${uc}</b></button>` : `<div class="max">滿級</div>`}<button class="sell" id="uSell">${ic('refund')}<span>${h.fresh ? '撤回' : '調走'}</span><b>+${G.C.sellValue(G.s, i)}</b></button><button class="x" aria-label="關閉">×</button></div><span class="held">時間暫停中</span>`;
     const up = panel.querySelector('#uUp'); if (up) up.onclick = () => { if (G.C.upgrade(G.s, i)) { sfx('buff'); openHero(i); tutCheck(); } else { sfx('weak', .4); bump($('uCoin')); } };
     panel.querySelector('#uSell').onclick = () => { sfx('coin'); G.C.sell(G.s, i); close(); };
     panel.querySelector('.x').onclick = close;
@@ -123,17 +124,18 @@ export function makeUI(G) {
     if (last.next !== key) {
       last.next = key; $('uFoe').hidden = true;
       $('uChips').innerHTML = G.C.waveInfo(Math.min(w, WAVES.length - 1)).map(o => `<button class="chip" data-t="${o.type}"><img class="por" src="${P[o.type]}" alt="">${o.elem !== 'none' ? eImg(o.elem) : ''}${fight ? '' : `<b>×${o.n}</b>`}${FOE[o.type].trait ? '<i class="tr">!</i>' : ''}</button>`).join('');
-      $('uChips').querySelectorAll('.chip').forEach(c => { c.onclick = () => foeInfo(c.dataset.t); });
+      $('uChips').querySelectorAll('.chip').forEach(c => { c.onclick = () => { sfx('cursor'); foeInfo(c.dataset.t); }; });
+      if (!fight && started) { const nw = G.C.waveInfo(Math.min(w, WAVES.length - 1)).find(o => FOE[o.type].trait && !seen['t_' + o.type]); if (nw) { seen['t_' + nw.type] = 1; foeInfo(nw.type, true); } }
     }
     const goKey = fight ? '' : w === 0 ? 'start' : 'early' + eb + '|' + Math.ceil(s.prepT);
     if (last.go !== goKey) { last.go = goKey; $('uGo').innerHTML = w === 0 ? '開始' : `提早開${eb > 0 ? ` ${ic('coin')}+${eb}` : ''}<i class="cd">${Math.max(0, Math.ceil(s.prepT))}</i>`; }
     $('uGo').hidden = fight; $('uNext').classList.toggle('fight', fight); $('uNext').hidden = !started || s.phase === 'won' || s.phase === 'lost';
   }
-  function foeInfo(t) {
-    const F = FOE[t], b = $('uFoe'), w = weakTo(F.elem); sfx('cursor');
-    if (!b.hidden && b.dataset.t === t) { b.hidden = true; return; }
+  function foeInfo(t, auto) {
+    const F = FOE[t], b = $('uFoe'), w = weakTo(F.elem);
+    if (!auto && !b.hidden && b.dataset.t === t) { b.hidden = true; return; }
     b.dataset.t = t; b.hidden = false;
-    b.innerHTML = `<img class="por big" src="${P[t]}" alt=""><div><div class="nm">${F.name} ${F.elem !== 'none' ? elemTag(F.elem) : '<span class="tag" style="--c:#9aa3ad">無屬性</span>'}</div>${w.length ? `<div class="wk">弱點 ${w.map(eImg).join('')} <b class="crit">×2</b></div>` : ''}${F.trait ? `<div class="note">${F.trait}</div>` : ''}</div>`;
+    b.innerHTML = `<img class="por big" src="${P[t]}" alt=""><div><div class="nm">${F.name} ${F.elem !== 'none' ? elemTag(F.elem) : '<span class="tag" style="--c:#9aa3ad">無屬性</span>'}</div>${w.length ? `<div class="wk">弱點 ${w.map(eImg).join('')} <b class="crit">×2</b></div>` : ''}${F.trait ? `<div class="note">${auto ? '<b class="new">新敵人</b> ' : ''}${F.trait}</div>` : ''}</div>`;
   }
   $('uGo').onclick = () => { const eb = G.C.earlyBonus(G.s); if (G.C.startWave(G.s)) { if (mode) close(); if (eb > 0) toast(`提早開波 ${ic('coin')}+${eb}`, 1.6); tutCheck(); } };
   $('uSpd').onclick = () => { sfx('cursor'); G.speed = G.speed === 1 ? 2 : 1; $('uSpd').querySelector('b').textContent = '×' + G.speed; $('uSpd').classList.toggle('on', G.speed > 1); };
@@ -172,7 +174,7 @@ export function makeUI(G) {
     if (e.k === 'wave') { last.next = null; last.go = null; }
     if (e.k === 'clear') {
       toast(`守住了！${ic('coin')}+${e.bonus}`, 2); last.next = null; last.go = null;
-      if (tut == null && !store.get('a4td3d_tut2') && e.n === 1) tutShow('B0'); else if (tut == null && !store.get('a4td3d_tut3') && e.n === 2) tutShow('C0');
+      if (!noTut && tut == null && !store.get('a4td3d_tut2') && e.n === 1) tutShow('B0'); else if (!noTut && tut == null && !store.get('a4td3d_tut3') && e.n === 2) tutShow('C0');
     }
     if (e.k === 'skill') toast('精神喊話！全員加速', 1.6);
     if (e.k === 'won' || e.k === 'lost') endScreen(e.k);
@@ -231,6 +233,7 @@ export function makeUI(G) {
   function tutCheck() { if (tut == null) return; const t = TUT[tut]; if (t.done && t.done()) tutShow(t.to); }
   function tutUpdate() {
     if (tut == null) return; tutCheck(); if (tut == null) return; const t = TUT[tut];
+    if ((t.hold || tut === 'B1') && G.s.phase !== 'prep') return tutShow(null);        // 已經開打了，講到一半的教學就收掉，時間不能卡住
     if (t.need && !t.need() && t.back) return tutShow(t.back);
     let p = null; if (t.at) p = t.at(); else if (t.el) { const n = t.el(); if (n) { const r = n.getBoundingClientRect(); if (r.width) { if (n.classList.contains('card')) n.scrollIntoView({ block: 'nearest', inline: 'nearest' }); p = [r.left + r.width * .62, r.top + r.height * .55]; } } }
     finger.hidden = !p; if (p) { finger.style.left = p[0] + 'px'; finger.style.top = p[1] + 'px'; }

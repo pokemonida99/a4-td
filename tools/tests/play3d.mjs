@@ -16,7 +16,7 @@ const st = () => page.evaluate(() => ({ coin: __g.s.coin, lives: __g.s.lives, wa
 const say = async t => console.log(t.padEnd(8), JSON.stringify(await st()));
 const buyAt = async (i, id) => { await tapSlot(i); await tapSel(`.card[data-id="${id}"]`); await tapSel('#uBuy'); };
 
-await shot('0_title'); await tapSel('#uTitle button[data-d="normal"]'); await wait(400); await shot('1_tutA'); await say('開場');
+await shot('0_title'); await tapSel('#uTitle button[data-d="normal"]'); await wait(2500); { const n = await page.evaluate(() => __g.sndLoaded()); console.log('解好的聲音', n); if (n < 30) errors.push('聲音只解了 ' + n + ' 個'); } await shot('1_tutA'); await say('開場');
 await tapSel('#uTutNext'); await tapSlot(4); await shot('2_menu'); await tapSel('.card[data-id="kui"]'); await tapSel('#uBuy'); await say('派小葵');
 await buyAt(2, 'jie'); await shot('3_ready'); await say('派阿傑');
 await tapSel('#uGo'); await tapSel('#uSpd'); await wait(7000); await shot('4_wave1'); await say('第一波');
