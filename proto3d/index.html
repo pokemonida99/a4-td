@@ -3,15 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>準時下班防衛戰｜3D 樣張</title>
-<style>
-  html,body{margin:0;height:100%;background:#020308;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
-  canvas{display:block;width:100vw;height:100vh;image-rendering:pixelated}
-</style>
+<title>準時下班防衛戰</title>
+<link rel="stylesheet" href="./ui.css">
 </head>
 <body>
 <canvas id="gl"></canvas>
 <script type="importmap">{"imports":{"three":"../vendor/three.module.js"}}</script>
 <script type="module" src="./main.js"></script>
+<script>
+  // 擋掉兩指放大、連點放大、Ctrl＋滾輪、長按選單
+  for (const t of ['gesturestart', 'gesturechange', 'contextmenu', 'dblclick']) document.addEventListener(t, e => e.preventDefault(), { passive: false });
+  document.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+  document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+</script>
 </body>
 </html>

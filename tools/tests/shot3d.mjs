@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 const require = createRequire('/Users/hermes/Public/0720/office-idle-reel/'), puppeteer = require('puppeteer-core');
 const [name = 'p3d', query = '', dpr = '2'] = process.argv.slice(2);
 const browser = await puppeteer.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
-const page = await browser.newPage(); await page.setViewport({ width: 1280, height: 590, deviceScaleFactor: +dpr });
+const page = await browser.newPage(); await page.setViewport({ width: +(process.env.W || 1280), height: +(process.env.H || 590), deviceScaleFactor: +dpr, isMobile: !!process.env.W, hasTouch: !!process.env.W });
 const errors = []; page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !m.text().includes('404')) errors.push(m.text()); });
 const BASE = process.env.URL || 'http://localhost:4660/';
 await page.goto(`${BASE}proto3d/index.html?${query}&f=${Date.now()}`); await page.waitForFunction('window.__p && window.__p.ready', { timeout: 60000 });

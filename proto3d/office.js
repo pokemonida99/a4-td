@@ -1,10 +1,8 @@
 // 夜間辦公室浮島：所有模型都用程式的方塊堆出來，沒有外部模型檔。
 import * as THREE from 'three';
+import { MAP } from './rules.js';
 
 export const W = (x, y) => [(x - 640) / 40, (y - 295) / 40];
-const PATH2D = [[1190, -60], [1190, 125], [290, 125], [290, 275], [1060, 275], [1060, 420], [400, 420]];
-const SLOTS2D = [[430, 200], [530, 200], [630, 200], [770, 200], [870, 200], [970, 200], [430, 348], [530, 348], [630, 348], [770, 348], [870, 348], [970, 348]];
-const OCCUPIED = new Set([0, 2, 4, 5, 7, 8, 10]);
 const X0 = -11, X1 = 16, Z0 = -8.6, Z1 = 5;
 
 export function rng(seed) { let s = seed >>> 0; return () => { s |= 0; s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -51,11 +49,11 @@ function canvasTex(w, h, draw, rx = 1, ry = 1) {
 export function buildOffice(scene, seed) {
   const rnd = rng(seed), B = new Build(rnd), E = new Build(rnd), S = new Build(rnd);
   const out = { lamps: [], pointLights: [], bounds: { x0: X0, x1: X1, z0: Z0, z1: Z1 } };
-  out.path = PATH2D.map(p => W(p[0], p[1])); out.slots = SLOTS2D.map(p => W(p[0], p[1]));
+  out.path = MAP.path; out.slots = MAP.slots;
   const point = (hex, I, dist, x, y, z, haze = 0.02) => { const l = new THREE.PointLight(hex, I, dist, 2); l.position.set(x, y, z); scene.add(l); out.pointLights.push(l); l.userData.haze = haze; return l; };
 
   // ── 環境光：窗外的月光與城市光 ──
-  scene.add(new THREE.HemisphereLight(0x4f6fd0, 0x140f1c, 0.3));
+  scene.add(new THREE.HemisphereLight(0x5a78d6, 0x1a1626, 0.6));
   const fill = new THREE.DirectionalLight(0xc8d4ff, 0.5); fill.position.set(9, 5, 22); fill.target.position.set(3, 0, -1); scene.add(fill, fill.target); // 鏡頭這一側的補光，讓臉看得清楚
   const moon = new THREE.DirectionalLight(0x86a8ff, 1.25);
   moon.position.set(-6, 16, -22); moon.target.position.set(3, 0, -1); scene.add(moon, moon.target);
@@ -92,7 +90,7 @@ export function buildOffice(scene, seed) {
 
   // ── 浮島的切面：地板、樓板、鋼樑、管線 ──
   const cx = (X0 + X1) / 2, cz = (Z0 + Z1) / 2, sw = X1 - X0, sd = Z1 - Z0;
-  S.box(cx, -0.16, cz, sw, 0.16, sd, 0xb9c4d4, { jit: 0, grad: .9 });
+  S.box(cx, -0.2, cz, sw, 0.16, sd, 0xb9c4d4, { jit: 0, grad: .9 });   // 頂面比地板低一點，兩個面才不會搶著顯示
   S.box(cx, -0.75, cz, sw - .12, 0.59, sd - .12, 0xd0cdc6, { jit: 0, grad: .75 });
   S.box(cx, -1.0, cz, sw - .5, 0.25, sd - .5, 0x7a6a62, { jit: 0, grad: .6 });
   for (let x = X0 + 1.2; x < X1; x += 3.1) S.box(x, -1.32, cz, .34, .34, sd - .3, 0x5b4a44, { grad: .6 });            // 鋼樑
@@ -160,39 +158,38 @@ export function buildOffice(scene, seed) {
   E.box(LX - .02, 0.02, 3.2, .04, 2.26, 1.3, [0.75, 1.15, 0.9], { mul: 1.5, jit: 0, grad: .8 });                      // 門外走廊的光
   B.box(LX + .1, 0, 2.48, .2, 2.36, .1, 0x39404b, { jit: 0 }); B.box(LX + .1, 0, 3.92, .2, 2.36, .1, 0x39404b, { jit: 0 }); B.box(LX + .1, 2.28, 3.2, .2, .1, 1.5, 0x39404b, { jit: 0 }); B.box(LX + .1, 0, 3.2, .12, 2.3, .05, 0x39404b, { jit: 0 });
   E.box(LX + .22, 2.5, 3.2, .05, .26, .86, [0.25, 1.4, 0.55], { mul: 2.4, jit: 0, grad: 1 });                         // EXIT
-  point(0x7dffb0, 9, 7, LX + 1.0, 2.0, 3.2, 0.03);
   // 販賣機
   B.box(X0 + .85, 0, -6.3, 1.0, 2.15, 1.3, 0xa63a34); B.box(X0 + 1.33, 0.1, -6.3, .06, .35, 1.0, 0x2a2d35, { jit: 0 });
   E.box(X0 + 1.37, 0.62, -6.42, .03, 1.38, .92, [1.25, 1.0, 0.78], { mul: 1.7, jit: 0, grad: .9 });
   for (let r = 0; r < 4; r++) for (let k = 0; k < 4; k++) B.box(X0 + 1.4, 0.72 + r * .32, -6.78 + k * .24, .03, .2, .12, [0xd0452f, 0x2f6fd0, 0x2e9a57, 0xf2c84b, 0xffffff][(r * 3 + k) % 5], { jit: .1 });
-  point(0xffd0a8, 11, 8, X0 + 2.1, 1.4, -6.3, 0.03);
   // 飲水機
   B.box(X0 + .7, 0, -7.75, .55, 1.15, .55, 0xe6e9ec); B.box(X0 + .7, 1.15, -7.75, .4, .5, .4, 0x7fb5e6, { jit: 0 });
 
   // ── 12 個工位 ──
-  const desk = (sx, sz, on, k) => {
+  const LM = new THREE.MeshLambertMaterial({ vertexColors: true }), EM = new THREE.MeshBasicMaterial({ vertexColors: true }); out.desks = [];
+  const desk = (sx, sz, k) => {
+    const On = new Build(rnd), Off = new Build(rnd);
     const z = sz - .82, wood = k % 2 ? 0xb07a48 : 0xa56f40;
     B.box(sx, 0, sz - 1.22, 2.36, 1.22, .08, 0x5b7391); B.box(sx, 1.22, sz - 1.22, 2.4, .05, .12, 0xc9d2dc, { jit: 0 });     // 隔板
     B.box(sx - 1.2, 0, z - .02, .08, 1.22, .86, 0x5b7391);
     B.box(sx, .74, z, 1.95, .07, .78, wood, { grad: 1 }); B.box(sx - .93, 0, z, .06, .74, .72, 0x7a5232); B.box(sx + .93, 0, z, .06, .74, .72, 0x7a5232);
     B.box(sx + .62, .06, z, .5, .62, .66, 0x8b939e);
     B.box(sx + .42, .81, z - .2, .1, .16, .08, 0x1c1f26, { jit: 0 }); B.box(sx + .42, .95, z - .18, .76, .5, .05, 0x15171d, { jit: 0, grad: 1 });
-    if (on) E.box(sx + .42, .99, z - .15, .68, .42, .012, [0.5, 0.82, 1.5], { mul: 1.25 + rnd() * .5, jit: 0, grad: .8 });
+    On.box(sx + .42, .99, z - .15, .68, .42, .012, [0.5, 0.82, 1.5], { mul: 1.25 + rnd() * .5, jit: 0, grad: .8 });
     B.box(sx + .42, .81, z + .16, .52, .03, .17, 0x2c3038, { jit: 0 });
     B.box(sx - .68, .81, z - .16, .22, .03, .22, 0x23262d, { jit: 0 }); B.box(sx - .68, .84, z - .16, .045, .5, .045, 0xb99a4a, { jit: 0 });
     B.box(sx - .62, 1.3, z - .1, .46, .13, .28, 0x1f7a60, { jit: .02, grad: 1 });
-    if (on) {
-      E.box(sx - .62, 1.275, z - .1, .38, .03, .2, [1.5, 1.05, 0.5], { mul: 4.2, jit: 0, grad: 1 });
-      const I = 30, l = point(0xffb866, I, 10, sx - .55, 1.12, z + .08, 0.035);
-      out.lamps.push({ light: l, base: I, ph: rnd() * 9, x: sx - .55, y: 1.2, z: z + .3, c: [1.0, 0.72, 0.36], k: 0.5 });
-    } else {
-      B.box(sx, .44, sz - .05, .56, .1, .54, 0x2f3540); B.box(sx, .54, sz + .2, .56, .62, .08, 0x2f3540); B.box(sx, 0, sz - .05, .1, .44, .1, 0x1c1f26, { jit: 0 }); B.box(sx, 0, sz - .05, .5, .05, .5, 0x1c1f26, { jit: 0 });
-    }
+    On.box(sx - .62, 1.275, z - .1, .38, .03, .2, [1.5, 1.05, 0.5], { mul: 4.2, jit: 0, grad: 1 });
+    Off.box(sx, .44, sz - .05, .56, .1, .54, 0x2f3540); Off.box(sx, .54, sz + .2, .56, .62, .08, 0x2f3540); Off.box(sx, 0, sz - .05, .1, .44, .1, 0x1c1f26, { jit: 0 }); Off.box(sx, 0, sz - .05, .5, .05, .5, 0x1c1f26, { jit: 0 });
+    const mOn = new THREE.Mesh(On.geo(), EM), mOff = new THREE.Mesh(Off.geo(), LM); mOn.visible = false; mOff.castShadow = true; scene.add(mOn, mOff);
+    const l = point(0xffb866, 0, 10, sx - .55, 1.12, z + .08, 0.035), lamp = { light: l, base: 0, ph: rnd() * 9, x: sx - .55, y: 1.2, z: z + .3, c: [1.0, 0.72, 0.36], k: 0 };
+    out.lamps.push(lamp);
+    out.desks.push({ set(v) { mOn.visible = v; mOff.visible = !v; lamp.base = v ? 30 : 0; lamp.k = v ? .5 : 0; l.intensity = lamp.base; } });
     B.box(sx - .2 + rnd() * .16, .81, z + .05, .3, .03 + rnd() * .12, .4, 0xece6d4, { ry: rnd() * .5 - .25 });
     if (rnd() < .7) B.box(sx + .02, .81, z - .22, .11, .13, .11, [0xd0452f, 0xf2c84b, 0x4fa3d9, 0xe9e2d0][k % 4], { jit: 0 });
     if (rnd() < .5) { B.box(sx - .3, .81, z - .24, .16, .12, .16, 0xb5653a); for (let i = 0; i < 5; i++) B.box(sx - .3 + rnd() * .14 - .07, .93 + rnd() * .1, z - .24 + rnd() * .14 - .07, .1, .14, .1, 0x4f9a55, { ry: rnd() * 3 }); }
   };
-  out.slots.forEach((s, i) => desk(s[0], s[1], OCCUPIED.has(i), i));
+  out.slots.forEach((s, i) => desk(s[0], s[1], i));
 
   // ── 打卡機：全場最亮的一盞（大家要守住的東西）──
   const [kx, kz] = W(322, 425);
@@ -200,7 +197,7 @@ export function buildOffice(scene, seed) {
   E.box(kx, 1.52, kz + .285, .78, .62, .02, [1.5, 0.95, 0.3], { mul: 3.2, jit: 0, grad: .85 });
   E.box(kx + .495, 1.52, kz, .02, .62, .4, [1.5, 0.95, 0.3], { mul: 2.2, jit: 0, grad: .85 });
   B.box(kx, 2.26, kz, .07, .4, .07, 0x8a93a1, { jit: 0 }); E.box(kx, 2.62, kz, .26, .26, .26, [0.4, 1.5, 0.6], { mul: 4, jit: 0, grad: 1 });
-  out.clockBase = 20; out.clockLight = point(0xffb14a, out.clockBase, 10, kx + .7, 1.7, kz + .9, 0.05);
+  out.clockPos = [kx, kz]; out.clockBase = 20; out.clockLight = point(0xffb14a, out.clockBase, 10, kx + .7, 1.7, kz + .9, 0.05);
   out.lamps.push({ light: { intensity: 0 }, base: 0, ph: 0, x: kx, y: 1.8, z: kz + .5, c: [1.0, 0.65, 0.25], k: 0.8 });
 
   // ── 其他擺設 ──
@@ -224,7 +221,7 @@ export function buildOffice(scene, seed) {
   B.box(mx + .5, .81, mz + .1, .34, .05, .44, 0xece6d4, { ry: -.3 });
   for (const [bx, bz, n] of [[15.2, -2.4, 3], [14.5, -2.9, 2], [15.3, -3.4, 1], [-9.9, 1.2, 2], [11.9, 4.2, 2]]) for (let i = 0; i < n; i++) B.box(bx + rnd() * .1, i * .5, bz + rnd() * .1, .72, .5, .56, 0xb48d5a, { ry: rnd() * .3 - .15 }); // 紙箱
   B.box(-9.85, 0, 2.2, .36, .5, .36, 0x4a5362); B.box(15.3, 0, -.6, .36, .5, .36, 0x4a5362);                           // 垃圾桶
-  for (let i = 0; i < 26; i++) { const x = X0 + 1 + rnd() * (sw - 2), z = Z0 + 1.4 + rnd() * (sd - 2); B.box(x, 0.012, z, .22, .006, .3, 0xece6d4, { ry: rnd() * 3, jit: .04, grad: 1 }); } // 掉在地上的公文
+  for (let i = 0; i < 26; i++) { const x = X0 + 1 + rnd() * (sw - 2), z = Z0 + 1.4 + rnd() * (sd - 2); B.box(x, 0.02, z, .22, .008, .3, 0xece6d4, { ry: rnd() * 3, jit: .04, grad: 1 }); } // 掉在地上的公文
 
   const stat = new THREE.Mesh(B.geo(), new THREE.MeshLambertMaterial({ vertexColors: true })); stat.castShadow = stat.receiveShadow = true; scene.add(stat);
   const sm = new THREE.MeshLambertMaterial({ vertexColors: true });

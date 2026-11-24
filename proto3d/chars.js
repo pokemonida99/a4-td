@@ -7,7 +7,7 @@ const rnd = rng(31);
 const EMI = new THREE.MeshBasicMaterial({ vertexColors: true });
 function litMat() {
   const m = new THREE.MeshLambertMaterial({ vertexColors: true });
-  m.userData.self = { value: 0.3 };
+  m.userData.self = { value: 0.36 };
   m.onBeforeCompile = sh => { sh.uniforms.uSelf = m.userData.self; sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uSelf;').replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += diffuseColor.rgb * uSelf;'); };
   return m;
 }
@@ -34,6 +34,7 @@ function hair(B, s, hw, hh, hd) {
   if (st === 'long') { B.box(0, -.62, -hd / 2 - .06, hw + .06, .78, .2, c); B.box(-hw / 2 - .04, -.3, -.1, .14, .66, .34, c); B.box(hw / 2 + .04, -.3, -.1, .14, .66, .34, c); }
   if (st === 'pony') { B.box(0, .42, -hd / 2 - .16, .2, .18, .2, s.tie || 0xd0452f, J0); B.box(0, -.02, -hd / 2 - .3, .3, .52, .3, c); B.box(0, -.26, -hd / 2 - .34, .22, .3, .22, c); }
   if (st === 'curly') for (let i = 0; i < 16; i++) { const a = i / 16 * 6.28, r = hw / 2 + .06; B.box(Math.cos(a) * r, .34 + (i % 3) * .2, Math.sin(a) * r * .95 - .04, .26, .26, .26, c, { ry: a, jit: .1 }); }
+  if (st === 'twin') for (const sx of [-1, 1]) { B.box(sx * (hw / 2 + .16), .46, -.06, .2, .2, .2, s.tie || 0xffffff, J0); B.box(sx * (hw / 2 + .22), -.02, -.1, .26, .5, .26, c); B.box(sx * (hw / 2 + .24), -.3, -.12, .2, .32, .2, c); }
   if (st === 'spiky') for (let i = 0; i < 9; i++) { const a = i / 9 * 6.28; B.box(Math.cos(a) * .3, hh + .02 + (i % 2) * .05, Math.sin(a) * .3 - .03, .2, .2 + (i % 3) * .06, .2, c, { ry: a + .5, jit: .08 }); }
 }
 function hat(B, E, s, hw, hh, hd) {
@@ -45,6 +46,8 @@ function hat(B, E, s, hw, hh, hd) {
   if (h === 'feather') { B.box(0, hh + .02, -.02, hw + .14, .18, hd + .14, c); B.box(0, hh + .02, hd / 2 + .12, hw - .2, .06, .24, c); B.box(.34, hh + .16, -.1, .08, .5, .22, 0xf3efe2, { ry: .3, jit: 0 }); }
   if (h === 'headband') { B.box(0, hh - .36, 0, hw + .14, .13, hd + .16, c, J0); B.box(.2, hh - .5, -hd / 2 - .16, .1, .34, .1, c, J0); B.box(-.05, hh - .56, -hd / 2 - .2, .1, .4, .1, c, J0); }
   if (h === 'halo') for (let i = 0; i < 10; i++) { const a = i / 10 * 6.28; E.box(Math.cos(a) * .36, hh + .34, Math.sin(a) * .36, .14, .06, .14, [0.7, 1.0, 1.5], { mul: 2.4, ry: -a, ...G1 }); }
+  if (h === 'helmet') { B.box(0, hh - .02, 0, hw + .2, .1, hd + .24, c, J0); B.box(0, hh + .08, -.02, hw + .08, .2, hd + .08, c, J0); B.box(0, hh + .28, -.02, hw - .2, .08, hd - .16, c, J0); B.box(0, hh + .2, 0, .12, .16, hd + .1, 0xf6e2a0, J0); }
+  if (h === 'bow') { B.box(-.2, hh + .08, .06, .3, .24, .12, c, J0); B.box(.2, hh + .08, .06, .3, .24, .12, c, J0); B.box(0, hh + .12, .08, .12, .14, .14, c, J0); }
   if (h === 'phones') { B.box(0, hh + .04, 0, hw + .2, .08, .16, 0x30343c, J0); B.box(-hw / 2 - .09, .26, 0, .12, .34, .34, 0x30343c, J0); B.box(hw / 2 + .09, .26, 0, .12, .34, .34, 0x30343c, J0); }
 }
 function weapon(B, E, s, side) {
@@ -62,6 +65,12 @@ function weapon(B, E, s, side) {
   if (w === 'pan') { B.box(0, -.7, .16, .07, .9, .07, 0x30343c, J0); B.box(0, .2, .16, .5, .5, .06, 0x3a3f48); }
   if (w === 'scroll') { B.box(0, -.6, .12, .12, .12, .5, 0xcdb98a, J0); B.box(0, -1.2, .12, .03, .62, .44, PAPER, { jit: 0, grad: .9 }); }
   if (w === 'paper') { B.box(0, -.72, .14, .03, .4, .32, PAPER, { jit: 0, grad: .95 }); }
+  if (w === 'sign') { B.box(0, -1.0, .2, .5, .78, .06, 0xf2c21e, { jit: 0, grad: .9 }); B.box(0, -.72, .24, .1, .3, .02, 0x23262d, J0); B.box(0, -.84, .24, .1, .08, .02, 0x23262d, J0); }
+  if (w === 'bucket') { B.box(0, -.84, .1, .3, .28, .3, 0xc8372d); B.box(0, -.56, .1, .32, .04, .32, 0x8a93a1, J0); }
+  if (w === 'cup') { B.box(0, -.66, .16, .2, .3, .2, 0xf4efe0, J0); B.box(0, -.66, .16, .21, .12, .21, 0x7a4a2e, J0); B.box(.03, -.36, .16, .04, .2, .04, 0xd0452f, J0); }
+  if (w === 'case') { B.box(0, -.9, .06, .14, .36, .52, 0x7a4a2e); B.box(0, -.56, .06, .06, .06, .2, 0x3a2a22, J0); }
+  if (w === 'lens') { B.box(0, -.62, .3, .06, .06, .4, WOOD, J0); for (const [x, y] of [[-.18, 0], [.18, 0], [0, .18], [0, -.18]]) B.box(x, -.62 + y - .05, .62, x ? .06 : .42, x ? .42 : .06, .06, GOLD, J0); E.box(0, -.78, .62, .3, .3, .02, col, { mul: 1.6, ...G1 }); }
+  if (w === 'flask') { B.box(0, -.7, .16, .1, .14, .1, 0xdfe6ea, J0); E.box(0, -.94, .16, .26, .24, .26, col, { mul: 1.5, ...G1 }); }
   if (w === 'stamp') { B.box(0, -.72, .14, .2, .2, .2, WOOD); B.box(0, -.84, .14, .28, .12, .28, 0xc8372d, J0); }
 }
 
@@ -79,6 +88,8 @@ export function makeChar(s) {
     if (s.trim && !s.robe) B.box(0, torH - .3, torD / 2, .12, .3, .03, s.trim, J0);
     if (s.scarf) { B.box(0, torH - .13, 0, torW + .1, .15, torD + .12, s.scarf, J0); B.box(-.2, torH - .5, -torD / 2 - .08, .14, .42, .07, s.scarf, J0); }
     if (s.cape) B.box(0, -legH * .5, -torD / 2 - .06, torW + .16, torH + legH * .5, .07, s.cape);
+    if (s.wings) for (const sx of [-1, 1]) { E.box(sx * .34, torH - .2, -torD / 2 - .12, .5, .46, .04, s.wings, { mul: 1.1, ry: sx * -.5, ...G1 }); E.box(sx * .28, torH - .56, -torD / 2 - .1, .34, .34, .04, s.wings, { mul: .9, ry: sx * -.5, ...G1 }); }
+    if (s.vest) { B.box(0, .1, 0, torW + .06, torH - .14, torD + .06, s.vest); B.box(0, .26, torD / 2 + .04, torW + .08, .07, .02, 0xe6e9ec, J0); }
     if (s.pack) { B.box(0, .06, -torD / 2 - .2, torW - .04, torH - .04, .32, s.pack); B.box(0, torH - .06, -torD / 2 - .2, torW + .02, .16, .2, 0x7fb07a); }
     if (s.tie) B.box(0, torH - .34, torD / 2, .09, .32, .03, s.tieCol || 0xc8372d, J0);
     if (s.armor) { B.box(0, torH - .22, 0, torW + .1, .2, torD + .1, s.armor); B.box(-torW / 2 - .1, torH - .16, 0, .22, .2, .34, s.armor); B.box(torW / 2 + .1, torH - .16, 0, .22, .2, .34, s.armor); }
@@ -93,6 +104,8 @@ export function makeChar(s) {
       B.box(0, .14, hd / 2, .1, .035, .02, 0x9a5046, G1);
     }
     if (s.glasses) { for (const sx of [-1, 1]) { B.box(sx * .2, .24, hd / 2 + .03, .24, .03, .02, DARK, G1); B.box(sx * .2, .46, hd / 2 + .03, .24, .03, .02, DARK, G1); } B.box(0, .36, hd / 2 + .03, .1, .03, .02, DARK, G1); }
+    if (s.stache) B.box(0, .1, hd / 2 + .01, .36, .07, .04, s.stache, G1);
+    if (s.streak) B.box(.14, hh + .1, hd / 2 - .1, .16, .1, .2, s.streak, J0);
     if (s.beard) { B.box(0, -.14, hd / 2 - .04, .62, .3, .16, s.beard); B.box(0, -.3, hd / 2 - .02, .36, .2, .12, s.beard); B.box(0, .1, hd / 2 + .01, .34, .07, .04, s.beard); }
     hair(B, s, hw, hh, hd); hat(B, E, s, hw, hh, hd);
   });
@@ -124,6 +137,15 @@ export const CAST = {
   zhe: { hair: 0x9a5a30, hairStyle: 'short', top: 0xf2ede2, sleeve: 0xf2ede2, bottom: 0xc8372d, belt: 0xc8372d, trim: 0xc8372d, weapon: 'spear', glow: [1.6, 0.5, 0.3] },
   mi: { hair: 0x23232a, hairStyle: 'bob', hat: 'phones', top: 0xf4efe0, robe: 0xf4efe0, trim: 0xe0aa3e, weapon: 'wand', glow: [0.6, 1.5, 0.9] },
   vivi: { hair: 0xf2c84b, hairStyle: 'long', hat: 'crown', top: 0xd9506a, robe: 0xe0607a, trim: 0xf6d6dc, sleeve: 0xf6d6dc, weapon: 'wand', glow: [1.6, 0.6, 0.9] },
+  an: { hair: 0x5a3a7a, hairStyle: 'long', hat: 'helmet', hatCol: 0xf2c21e, top: 0x8a93a1, vest: 0xf07a2a, bottom: 0x2c3a6a, weapon: 'sign', offhand: 'bucket' },
+  cha: { hair: 0x6a4630, hairStyle: 'bob', top: 0x9fc79a, skirt: 0xd9c6a0, bottom: 0xf4c9a4, shoe: 0xd9c6a0, weapon: 'cup' },
+  fairy: { hair: 0x8a5a3a, hairStyle: 'twin', tie: 0xffffff, top: 0xf6c6d0, robe: 0xfbe3e8, trim: 0xffffff, wings: [0.9, 0.7, 1.5], weapon: 'wand', glow: [1.5, 0.8, 1.3] },
+  heilun: { hair: 0x2a2a30, hairStyle: 'spiky', streak: 0xf2c21e, top: 0x3a3a44, bottom: 0x2c2c34, tie: true, tieCol: 0xd9a441, shoe: 0x15171c, offhand: 'case' },
+  qiang: { hair: 0x23232a, hairStyle: 'short', hat: 'cap', hatCol: 0x23232a, top: 0xf2ede2, sleeve: 0xf4c9a4, glove: 0xe08a3a, bottom: 0x2c3038, belt: 0xe08a3a, fat: 1.15 },
+  senpai: { hair: 0x7a3a2e, hairStyle: 'short', top: 0xd9c6a0, bottom: 0xb9a57c, belt: 0x6a4a34, pack: 0x8a5a34, weapon: 'lens', glow: [1.5, 1.4, 0.8] },
+  wu: { hair: 0x9a3a3a, hairStyle: 'twin', tie: 0xf29ab0, hat: 'bow', hatCol: 0xf29ab0, top: 0xf29ab0, robe: 0xf6b8c8, trim: 0x9fd0e8, shoe: 0xc8372d },
+  xu: { hair: 0x8a2a30, hairStyle: 'pony', tie: 0x8a93a1, top: 0xf2ede2, skirt: 0x4a4a54, bottom: 0x3a3a44, tieCol: 0xc8372d, weapon: 'flask', glow: [1.6, 0.7, 0.3] },
+  you: { hair: 0x4a2a4a, hairStyle: 'short', glasses: true, stache: 0x4a2a4a, top: 0x6a4a3a, cape: 0x5a3a2a, bottom: 0x3a3028, weapon: 'dagger' },
   // 敵人
   foe_minion: { hair: 0x23232a, hairStyle: 'spiky', hat: 'headband', hatCol: 0xc8372d, top: 0x3a3340, bottom: 0x2a2630, belt: 0xc8372d, offhand: 'paper', scale: .86 },
   foe_courier: { hair: 0x8a5a34, hairStyle: 'short', hat: 'feather', hatCol: 0x9a6a3a, top: 0xb5763a, bottom: 0x6a4a34, pack: 0xcdb98a, weapon: 'paper', scale: .84 },
@@ -133,7 +155,22 @@ export const CAST = {
   foe_auntie: { hair: 0x9a5a9a, hairStyle: 'curly', top: 0xb03a4a, robe: 0x8a2f3c, weapon: 'book', glasses: true, fat: 1.12, scale: .88 },
   foe_ghost: { hair: 0x23232a, hairStyle: 'short', hat: 'halo', top: 0x2c3038, bottom: 0x23262d, tie: true, tieCol: 0x9fd0e8, ghost: true, scale: .84 },
   foe_cart: { hair: 0x6a4630, hairStyle: 'short', hat: 'cap', hatCol: 0x5f7a4a, top: 0x6f7a4a, bottom: 0x5a4a34, cart: true, scale: .88 },
+  foe_mini: { faceless: false, hair: 0xf0ead8, hairStyle: 'bald', skin: 0xf0ead8, top: 0xf0ead8, bottom: 0xcdb98a, scale: .5 },
   foe_patcher: { hair: 0x9a5a30, hairStyle: 'short', top: 0xf2ede2, bottom: 0xcdb98a, weapon: 'paper', offhand: 'paper', scale: .8 },
   foe_chief: { hair: 0x4a4a4a, hairStyle: 'bald', glasses: true, top: 0x7a4a34, sleeve: 0xf2ede2, bottom: 0x3a3028, tie: true, weapon: 'pan', fat: 1.4, scale: 1.15 },
   foe_boss: { hair: 0x6a6a6a, hairStyle: 'bald', beard: 0x8a8a8a, top: 0xb0282a, robe: 0xb0282a, trim: 0xe0aa3e, cape: 0x7a1a20, weapon: 'hammer', offhand: 'scroll', fat: 1.6, scale: 1.5 },
 };
+
+// 鼠仙女的老鼠（灰鼠快、棕鼠耐打）
+export function makeRat(kind) {
+  const root = new THREE.Group(), mat = litMat(), c = kind === 'brown' ? 0x9a6a3a : 0x9aa3ad, k = kind === 'brown' ? 1.25 : 1;
+  const body = part(root, mat, 0, 0, 0, B => {
+    B.box(0, .1, 0, .42 * k, .34 * k, .62 * k, c); B.box(0, .22 * k, .36 * k, .34 * k, .3 * k, .3 * k, c);
+    B.box(-.14 * k, .5 * k, .34 * k, .14, .16, .06, 0xf2a09a, J0); B.box(.14 * k, .5 * k, .34 * k, .14, .16, .06, 0xf2a09a, J0);
+    B.box(-.09 * k, .36 * k, .52 * k, .06, .07, .02, DARK, G1); B.box(.09 * k, .36 * k, .52 * k, .06, .07, .02, DARK, G1); B.box(0, .28 * k, .53 * k, .07, .05, .03, 0xf2a09a, G1);
+    B.box(0, .16, -.5 * k, .05, .05, .42, 0xf2a09a, J0);
+    for (const [x, z] of [[-.14, .2], [.14, .2], [-.14, -.2], [.14, -.2]]) B.box(x * k, 0, z * k, .1, .12, .12, 0xf2a09a, J0);
+  });
+  return { root, body, mat, face: 0, rat: true };
+}
+export function poseRat(c, t) { c.body.position.y = Math.abs(Math.sin(t * 9)) * .12; c.body.rotation.x = Math.sin(t * 9) * .12; }
