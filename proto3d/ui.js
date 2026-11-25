@@ -1,6 +1,6 @@
 // 準時下班防衛戰 3D 版｜介面：標題、抬頭資訊、兵種選單、同事資料、波次預告、技能、教學、結算
 // 美術方向：值班看板——深藍實色底、直角、硬邊陰影；能用圖示就不用字。
-import { HERO, HERO_ORDER, FOE, ELEM, BEATS, WAVES, RULE, DIFF, PHYS, statsOf, upgradeCost, elemMul } from './rules.js';
+import { HERO, HERO_ORDER, FOE, ELEM, BEATS, WAVES, RULE, DIFF, PHYS, RAT, statsOf, upgradeCost, elemMul } from './rules.js';
 import { startAudio, sfx, bgm, setMute, isMuted } from './audio.js';
 
 // 屬性小圖示：11×11 點陣，程式畫
@@ -67,7 +67,7 @@ export function makeUI(G) {
     if (st.atkUp) a.push(`<span>${ic('dmg')}<b>+${pct(st.atkUp)}</b></span>`);
     if (st.spdUp) a.push(`<span>${ic('aspd')}<b>+${pct(st.spdUp)}</b></span>`);
     if (st.slow) a.push(`<span>${ic('speed')}<b>−${pct(st.slow)}</b></span>`);
-    if (st.kind === 'summon') a.push(`<span>${ic('aspd')}<b>${st.every}</b><small>秒一隻</small></span>`);
+    if (st.kind === 'summon') a.push(`<span>${ic('dmg')}<small>咬一口</small><b>${RAT.grey.bite}</b></span>`, `<span>${ic('aspd')}<small>${st.every} 秒召</small><b>${st.rats}</b><small>隻</small></span>`);
     if (!short) a.push(`<span>${ic('range')}<b>${st.range}</b><small>範圍</small></span>`);
     return a.join('');
   }
@@ -106,7 +106,7 @@ export function makeUI(G) {
   function openHero(i) {
     const h = G.s.slots[i].h; if (!h) return close(); mode = 'hero'; slot = i; G.select(i); G.lift = .14; G.hold = true; panel.hidden = false; panel.className = 'panel plate hero'; $('uFoe').hidden = true;
     const st = statsOf(h.id, h.lv), nx = h.lv < RULE.maxLv ? statsOf(h.id, h.lv + 1) : null, uc = upgradeCost(h.id, h.lv);
-    panel.innerHTML = `<div class="detail"><img class="por big" src="${P[h.id]}" alt=""><div class="info"><div class="nm">${st.name}<small>${st.job}</small><span class="lv">${'◆'.repeat(h.lv)}${'◇'.repeat(RULE.maxLv - h.lv)}</span>${elemTag(st.elem)}${versus(st.elem)}</div><div class="stats">${statRow(st)}${h.bAtk > 0 || h.bSpd > 0 ? `<span class="hint good">被加持${h.bAtk > 0 ? ` 攻+${pct(h.bAtk)}` : ''}${h.bSpd > 0 ? ` 速+${pct(h.bSpd)}` : ''}</span>` : ''}</div><div class="note">${st.note}${nx ? `<span class="nx">　升級後：${nx.note}${nx.atk ? `（${ic('dmg')}${st.atk}→${nx.atk}）` : ''}</span>` : ''}</div></div>
+    panel.innerHTML = `<div class="detail"><img class="por big" src="${P[h.id]}" alt=""><div class="info"><div class="nm">${st.name}<small>${st.job}</small><span class="lv">${'◆'.repeat(h.lv)}${'◇'.repeat(RULE.maxLv - h.lv)}</span>${elemTag(st.elem)}${versus(st.elem)}</div><div class="stats">${statRow(st)}${h.bAtk > 0 || h.bSpd > 0 ? `<span class="hint good">被加持${h.bAtk > 0 ? ` 攻+${pct(h.bAtk)}` : ''}${h.bSpd > 0 ? ` 速+${pct(h.bSpd)}` : ''}</span>` : ''}</div><div class="note">${st.note}${nx ? `<span class="nx">　升級後：${nx.note}${nx.atk ? `（${ic('dmg')}${st.atk}→${nx.atk}）` : ''}${nx.range !== st.range ? `（${ic('range')}${st.range}→${nx.range}）` : ''}</span>` : ''}</div></div>
       ${nx ? `<button class="buy" id="uUp">${ic('promote')}<span>升級</span><b>${ic('coin')}${uc}</b></button>` : `<div class="max">滿級</div>`}<button class="sell" id="uSell">${ic('refund')}<span>${h.fresh ? '撤回' : '調走'}</span><b>+${G.C.sellValue(G.s, i)}</b></button><button class="x" aria-label="關閉">×</button></div><span class="held">時間暫停中</span>`;
     const up = panel.querySelector('#uUp'); if (up) up.onclick = () => { if (G.C.upgrade(G.s, i)) { sfx('buff'); openHero(i); tutCheck(); } else { sfx('weak', .4); bump($('uCoin')); } };
     panel.querySelector('#uSell').onclick = () => { sfx('coin'); G.C.sell(G.s, i); close(); };

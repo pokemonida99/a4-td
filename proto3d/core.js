@@ -1,6 +1,6 @@
 // 準時下班防衛戰 3D 版｜戰鬥核心（純邏輯，不碰畫面；node 也能跑，給 tools/sim3d.mjs 用）
 // 畫面只讀狀態 s 和事件 s.ev（每一格畫面讀完自己清掉）。
-import { HERO, FOE, WAVES, RULE, DIFF, RAT, LV, PHYS, elemMul, statsOf, upgradeCost } from './rules.js';
+import { HERO, FOE, WAVES, RULE, DIFF, RAT, RAT_KINDS, LV, PHYS, elemMul, statsOf, upgradeCost } from './rules.js';
 
 export const DT = 1 / 30;
 export function newGame(map, seed = 1, diff = 'normal') {
@@ -123,7 +123,7 @@ export function step(s, dt = DT) {
     if (r.hp <= 0 || r.life <= 0 || r.d <= 0.8) { r.dead = true; s.ev.push({ k: 'ratEnd', r }); continue; }
     if (r.tg && (r.tg.hp <= 0 || Math.abs(r.tg.d - r.d) > 1.2)) { if (r.tg.block === r) r.tg.block = null; r.tg = null; }
     if (!r.tg) { let best = null; for (const f of s.foes) if (f.hp > 0 && !FOE[f.type].ghost && f.d <= r.d + 0.3 && f.d >= r.d - 0.8 && (!best || f.d > best.d)) best = f; if (best) { r.tg = best; if (!best.block) best.block = r; } }
-    if (r.tg) { r.bite -= dt; if (r.bite <= 0) { r.bite = 0.5; hurt(s, r.tg, R.bite * LV[r.lv - 1], 'none', null); s.ev.push({ k: 'ratBite', r }); } }
+    if (r.tg) { r.bite -= dt; if (r.bite <= 0) { r.bite = 0.5; hurt(s, r.tg, R.bite, 'none', null); s.ev.push({ k: 'ratBite', r, x: r.tg.x, z: r.tg.z }); } }
     else { r.d -= R.sp * dt; const p = posAt(s, r.d); r.x = p.x; r.z = p.z; r.dx = -p.dx; r.dz = -p.dz; }
   }
   s.rats = s.rats.filter(r => !r.dead);
@@ -142,8 +142,9 @@ export function step(s, dt = DT) {
     }
     if (H.kind === 'summon') {
       h.sum -= dt * rate; if (h.sum > 0 || !s.foes.some(f => f.hp > 0)) return; h.sum = st.every;
-      const mine = s.rats.filter(r => r.owner === i).length, n = h.lv >= 3 ? 2 : 1;
-      for (let k = 0; k < n && mine + k < 4; k++) { const kind = h.lv >= 2 && (h.alt = !h.alt) ? 'brown' : 'grey', p = posAt(s, sl.pd - k * 0.8), r = { id: s.nid++, kind, lv: h.lv, d: sl.pd - k * 0.8, x: p.x, z: p.z, dx: -p.dx, dz: -p.dz, hp: RAT[kind].hp * LV[h.lv - 1], life: RAT[kind].life, bite: 0.3, owner: i, tg: null }; s.rats.push(r); s.ev.push({ k: 'rat', r, i }); }
+      // 一級一隻、二級兩隻、三級三隻；場上最多留兩批
+      const kinds = RAT_KINDS[h.lv - 1], mine = s.rats.filter(r => r.owner === i).length;
+      kinds.forEach((kind, k) => { if (mine + k >= kinds.length * 2) return; const d = sl.pd - k * 0.8, p = posAt(s, d), r = { id: s.nid++, kind, lv: h.lv, d, x: p.x, z: p.z, dx: -p.dx, dz: -p.dz, hp: RAT[kind].hp, life: RAT[kind].life, bite: 0.3, owner: i, tg: null }; s.rats.push(r); s.ev.push({ k: 'rat', r, i }); });
       s.ev.push({ k: 'atk', i, kind: 'summon', elem: 'summon', to: [] }); return;
     }
     if (!st.atk) return;
@@ -152,16 +153,17 @@ export function step(s, dt = DT) {
     h.cd = H.cd; const f0 = tg[0], dmg = st.atk * (1 + h.bAtk);
     h.fx = f0.x - sl.x; h.fz2 = f0.z - sl.z;
     if (H.kind === 'melee') {
-      for (const f of tg) { let v = dmg; if (st.execute && f.hp / f.max < 0.35) v *= st.execute; hurt(s, f, v, H.elem, st); if (st.stun && rand(s) < 0.4 && !FOE[f.type].leak) f.stun = st.stun; }
-      s.ev.push({ k: 'atk', i, kind: 'melee', elem: H.elem, to: tg.map(f => [f.x, f.z]) });
+      let ex = false, stun = false;
+      for (const f of tg) { let v = dmg; if (st.execute && f.hp / f.max < 0.35) { v *= st.execute; ex = true; } hurt(s, f, v, H.elem, st); if (st.stun && rand(s) < 0.4 && !FOE[f.type].leak) { f.stun = st.stun; stun = true; } }
+      s.ev.push({ k: 'atk', i, kind: 'melee', elem: H.elem, to: tg.map(f => [f.x, f.z]), ex, stun });
     } else if (H.kind === 'pierce') {
       const L = Math.hypot(h.fx, h.fz2) || 1, ux = h.fx / L, uz = h.fz2 / L, hit = [];
       for (const f of s.foes) { if (f.hp <= 0 || f.d < 0.6) continue; const px = f.x - sl.x, pz = f.z - sl.z, al = px * ux + pz * uz; if (al < 0 || al > st.range) continue; if (Math.abs(px * uz - pz * ux) <= 0.75) hit.push([al, f]); }
       hit.sort((a, b) => a[0] - b[0]); hit.slice(0, st.n).forEach(([, f], k) => hurt(s, f, dmg * [1, .7, .5][k], H.elem, st));   // 穿到後面的傷害遞減
-      s.ev.push({ k: 'atk', i, kind: 'pierce', elem: H.elem, to: [[sl.x + ux * st.range, sl.z + uz * st.range]] });
+      s.ev.push({ k: 'atk', i, kind: 'pierce', elem: H.elem, to: [[sl.x + ux * st.range, sl.z + uz * st.range]], hit: hit.slice(0, st.n).map(([, f]) => [f.x, f.z]) });
     } else if (H.kind === 'blast') {
       s.shots.push({ kind: 'blast', t: 0.4, x: f0.x, z: f0.z, r: st.r, dmg, elem: H.elem, st });
-      s.ev.push({ k: 'atk', i, kind: 'blast', elem: H.elem, to: [[f0.x, f0.z]], r: st.r });
+      s.ev.push({ k: 'atk', i, kind: 'blast', elem: H.elem, to: [[f0.x, f0.z]], r: st.r, lv: h.lv });
     } else {
       s.shots.push({ kind: 'bolt', x: sl.x, z: sl.z, tg: f0, tx: f0.x, tz: f0.z, dmg, elem: H.elem, st, src: i, id: s.nid++ });
       s.ev.push({ k: 'atk', i, kind: 'bolt', elem: H.elem, shot: s.shots[s.shots.length - 1] });
@@ -170,14 +172,14 @@ export function step(s, dt = DT) {
 
   // 飛行中的攻擊
   for (const sh of s.shots) {
-    if (sh.kind === 'blast') { sh.t -= dt; if (sh.t <= 0) { sh.done = true; splash(s, sh.x, sh.z, sh.r, sh.dmg, sh.elem, sh.st); s.ev.push({ k: 'boom', x: sh.x, z: sh.z, r: sh.r, elem: sh.elem }); } continue; }
+    if (sh.kind === 'blast') { sh.t -= dt; if (sh.t <= 0) { sh.done = true; splash(s, sh.x, sh.z, sh.r, sh.dmg, sh.elem, sh.st); s.ev.push({ k: 'boom', x: sh.x, z: sh.z, r: sh.r, elem: sh.elem, blast: true }); } continue; }
     if (sh.tg && sh.tg.hp > 0) { sh.tx = sh.tg.x; sh.tz = sh.tg.z; }
     const dx = sh.tx - sh.x, dz = sh.tz - sh.z, d = Math.hypot(dx, dz), v = 16 * dt;
     if (d > v) { sh.x += dx / d * v; sh.z += dz / d * v; continue; }
     sh.done = true; const st = sh.st, f = sh.tg && sh.tg.hp > 0 ? sh.tg : null;
     if (f) { hurt(s, f, sh.dmg, sh.elem, st); effects(s, f, st); if (f.hp <= 0 && st.bounty) f.bounty = st.bounty; }
     if (st.splash) splash(s, sh.tx, sh.tz, st.splash, sh.dmg, sh.elem, st, f);
-    s.ev.push({ k: 'boom', x: sh.tx, z: sh.tz, r: st.splash || 0.5, elem: sh.elem, id: sh.id });
+    s.ev.push({ k: 'boom', x: sh.tx, z: sh.tz, r: st.splash || 0.5, elem: sh.elem, id: sh.id, src: st.id, lv: st.lv });
   }
   s.shots = s.shots.filter(sh => !sh.done);
 

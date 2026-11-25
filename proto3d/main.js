@@ -6,7 +6,8 @@ import { makePost } from './post.js';
 import { buildOffice } from './office.js';
 import { makeChar, makeRat, pose, poseRat, faceTo, CAST } from './chars.js';
 import * as C from './core.js';
-import { HERO, FOE, ELEM, MAP } from './rules.js';
+import { HERO, FOE, ELEM, MAP, statsOf } from './rules.js';
+import { makeFX } from './fx.js';
 import { makeUI } from './ui.js';
 import { sfx, bgm, jingle, loaded as sndLoaded } from './audio.js';
 
@@ -93,6 +94,8 @@ const foeRingGeo = new THREE.RingGeometry(.42, .56, 20).rotateX(-Math.PI / 2), f
 const iceGeo = new THREE.BoxGeometry(1.25, 2.1, 1.25), iceMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.35, 0.8, 1.3), transparent: true, opacity: .42, depthWrite: false });
 const buffMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.0, 0.7, 1.3) });
 const pipGeo = new THREE.BoxGeometry(.13, .13, .13), pipMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.6, 0.4) });
+const auraGeo = new THREE.RingGeometry(.84, 1, 6).rotateX(-Math.PI / 2), auraGeo2 = new THREE.RingGeometry(.94, 1, 40).rotateX(-Math.PI / 2), auraGeo3 = new THREE.RingGeometry(.7, 1, 3).rotateX(-Math.PI / 2);
+const AURA = { buff: ELEM.sup.rgb, haste: [1.7, 1.2, .5], slow: [.4, .9, 1.7], cure: ELEM.cure.rgb, summon: ELEM.summon.rgb };
 class Fig {
   constructor(spec, rat) {
     this.c = rat ? makeRat(rat) : makeChar(spec); this.rat = !!rat; const k = rat ? .7 : (spec.scale || 1) * (spec.fat || 1);
@@ -111,7 +114,10 @@ class Fig {
   }
   hp(r) { if (!this.fg) return; const v = r < .999; this.bg.visible = this.fg.visible = v; if (v) { r = Math.max(.02, r); this.fg.scale.x = r; this.fg.position.x = -(1 - r) / 2; this.fg.material.color.setRGB(r < .35 ? 1.3 : .4, r < .35 ? .35 : 1.1, .35); } }
   pips(n) { if (this.pg) this.top.remove(this.pg); this.pg = new THREE.Group(); for (let i = 0; i < n; i++) { const m = new THREE.Mesh(pipGeo, pipMat); m.position.x = (i - (n - 1) / 2) * .2; m.rotation.z = Math.PI / 4; this.pg.add(m); } this.top.add(this.pg); }
-  buff(on) { if (on && !this.bp) { this.bp = new THREE.Mesh(pipGeo, buffMat); this.bp.position.set(.62, -.02, 0); this.bp.scale.setScalar(1.3); this.top.add(this.bp); } if (this.bp) { this.bp.visible = on; this.bp.rotation.y += .08; } }
+  buff(on) { if (on && !this.bp) { this.bp = new THREE.Mesh(pipGeo, buffMat); this.bp.position.set(.62, -.02, 0); this.bp.scale.setScalar(1.3); this.top.add(this.bp); this.br = new THREE.Mesh(auraGeo2, addMat(ELEM.sup.rgb, .75)); this.br.position.y = .055; this.br.scale.setScalar(.72); this.w.add(this.br); } if (this.bp) { this.bp.visible = this.br.visible = on; this.bp.rotation.y += .08; } }
+  // 輔助同事腳下常駐的光陣：一眼看得出他正在發揮作用
+  aura(rgb) { this.au = [[auraGeo, .98, .9], [auraGeo3, .6, .7], [auraGeo2, 1.22, .8]].map(([g, sc, op], k) => { const m = new THREE.Mesh(g, addMat(rgb, op)); m.position.y = .06 + k * .004; m.scale.setScalar(sc); m.userData.op = op; this.w.add(m); return m; }); this.auc = rgb; }
+  auraTick(T, on, ph) { if (!this.au) return; const [a, b, c] = this.au; a.visible = b.visible = c.visible = on; if (!on) return; a.rotation.y = T * 1.1; b.rotation.y = -T * 1.7; const p = .5 + .5 * Math.sin(T * 2.6 + ph); a.material.opacity = a.userData.op * (.65 + .35 * p); c.scale.setScalar(1.18 + .12 * p); c.material.opacity = c.userData.op * (1 - p * .6); }
   ice(on) { if (on && !this.iceM) { this.iceM = new THREE.Mesh(iceGeo, iceMat); this.iceM.position.y = 1.05; this.w.add(this.iceM); } if (this.iceM) this.iceM.visible = on; }
   dispose() { scene.remove(this.w); this.c.root.traverse(o => { if (o.isMesh) o.geometry.dispose(); }); this.c.mat.dispose(); if (this.fg) this.fg.material.dispose(); }
 }
@@ -138,45 +144,54 @@ function spark(x, y, z, col, n, sp = 3, up = 1.5) {
 // ── 會動的光、光束、擴散圈 ──
 const dyn = []; for (let i = 0; i < 2; i++) { const l = new THREE.PointLight(0xffffff, 0, 7, 2); scene.add(l); dyn.push({ l, t: 0, dur: 1, peak: 0 }); } let dynI = 0;
 function flash(x, y, z, col, peak, dur) { const d = dyn[dynI++ % dyn.length]; if (d.t > 0 && d.peak > peak * 1.5) return; d.l.position.set(x, y, z); d.l.color.setRGB(col[0], col[1], col[2]); d.peak = peak; d.dur = dur; d.t = dur; }
-const beamGeo = new THREE.BoxGeometry(1, 1, 1), beams = [], booms = [], boltGeo = new THREE.BoxGeometry(.2, .2, .2), bolts = new Map();
-function beam(x0, y0, z0, x1, y1, z1, col, w = .1, life = .16) {
-  const m = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color(col[0] * 1.6, col[1] * 1.6, col[2] * 1.6) }));
-  const L = Math.hypot(x1 - x0, y1 - y0, z1 - z0); m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); m.lookAt(x1, y1, z1); m.scale.set(w, w, L); scene.add(m); beams.push({ m, t: life, life, w });
-}
-function boom(x, z, r, col, life = .38) { const m = new THREE.Mesh(ringGeo(.82, 1), addMat(col, 1)); m.position.set(x, .08, z); scene.add(m); booms.push({ m, t: life, life, r }); }
-function arc(x, z, col) { for (let k = 0; k < 2; k++) { const a = rnd() * 6.28; beam(x - Math.cos(a) * .6, 1.4 - k * .5, z - Math.sin(a) * .6, x + Math.cos(a) * .6, .5 + k * .5, z + Math.sin(a) * .6, col, .07, .13); } }
+// 飛行道具：每位同事丟的東西長得不一樣（形狀、大小、拋多高、尾巴）
+const ballGeo = new THREE.IcosahedronGeometry(1, 1), boxGeo = new THREE.BoxGeometry(1, 1, 1), bolts = new Map();
+const bmat = (r, g, b) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b) });
+const BOLT = {
+  jie: { geo: ballGeo, s: [.27, .27, .27], mat: bmat(2.6, 1.1, .3), arc: .5, trail: .24 },
+  xu: { geo: boxGeo, s: [.17, .28, .17], mat: bmat(.7, 1.9, .9), arc: 1.5, spin: 1 },
+  yan: { geo: ballGeo, s: [.21, .21, .21], mat: bmat(.5, 1.5, 2.8), arc: .4, trail: .17 },
+  heilun: { geo: boxGeo, s: [.36, .03, .24], mat: bmat(1.6, 2.0, 1.6), arc: .3, spin: 2 },
+  senpai: { geo: ballGeo, s: [.15, .15, .15], mat: bmat(3, 2.8, 1.6), arc: 0, trail: .12 },
+};
+let shake = 0;
+const fx = makeFX(scene, cam, { spark, flash, shake: v => { shake = Math.max(shake, v); }, project });
 
 // ── 把規則的事件變成畫面 ──
-let ui, T = 0, shake = 0;
+let ui, T = 0, critN = 0;
 function onEvents() {
   for (const e of s.ev) {
     const col = e.elem ? ELEM[e.elem].rgb : [1.4, 1.2, 1];
-    if (e.k === 'place') { const f = heroFig[e.i] = new Fig(CAST[e.id]); const [x, z] = MAP.slots[e.i]; f.place(x, z); f.c.face = yaw + .2; f.c.root.rotation.y = f.c.face; f.pips(1); office.desks[e.i].set(true); heroAnim[e.i].pop = 1; heroAnim[e.i].atk = -1; spark(x, 1, z, [1.5, 1.1, .5], 16, 2.4); flash(x, 1.4, z, [1.5, 1, .5], 12, .3); }
+    if (e.k === 'place') { const f = heroFig[e.i] = new Fig(CAST[e.id]); const [x, z] = MAP.slots[e.i]; f.place(x, z); f.c.face = yaw + .2; f.c.root.rotation.y = f.c.face; f.pips(1); office.desks[e.i].set(true); heroAnim[e.i].pop = 1; heroAnim[e.i].atk = -1; heroAnim[e.i].pulse = .4; fx.place(x, z); const au = AURA[HERO[e.id].kind]; if (au) f.aura(au); }
     else if (e.k === 'sell') { heroFig[e.i]?.dispose(); heroFig[e.i] = null; office.desks[e.i].set(false); }
-    else if (e.k === 'up') { heroFig[e.i].pips(e.lv); heroAnim[e.i].pop = 1; const [x, z] = MAP.slots[e.i]; spark(x, 1.2, z, [1.6, 1.3, .4], 22, 2.8, 3); flash(x, 1.5, z, [1.6, 1.3, .4], 16, .35); boom(x, z, 1.2, [1.6, 1.3, .4]); }
+    else if (e.k === 'up') { heroFig[e.i].pips(e.lv); heroAnim[e.i].pop = 1; heroAnim[e.i].pulse = .5; const [x, z] = MAP.slots[e.i]; fx.levelUp(x, z, e.lv); }
     else if (e.k === 'spawn') { const f = new Fig(CAST[e.f.type]); f.bar(e.f.elem); if (!CAST[e.f.type].ghost) f.c.mat.userData.self.value = .8; f.c.face = Math.atan2(e.f.dx, e.f.dz); f.place(e.f.x, e.f.z); foeFig.set(e.f.id, f); e.f.ph = rnd() * 8; if (FOE[e.f.type].leak) { ui.toast(`<b>${FOE[e.f.type].name}</b> 來了！漏掉會扣 ${FOE[e.f.type].leak} 條命`, 3.5); shake = .3; } }
     else if (e.k === 'atk') {
-      const a = heroAnim[e.i], [x, z] = MAP.slots[e.i]; a.atk = 0;
-      if (e.kind === 'melee') for (const [tx, tz] of e.to) { arc(tx, tz, col); spark(tx, 1, tz, col, 3, 2); }
-      else if (e.kind === 'pierce') { const [tx, tz] = e.to[0]; beam(x, 1.3, z, tx, 1.0, tz, col, .1, .18); }
-      else if (e.kind === 'blast') { const [tx, tz] = e.to[0]; boom(tx, tz, e.r, col.map(v => v * .5), .42); flash(x, 1.6, z, col, 4, .15); }
-      else if (e.kind === 'bolt') { const m = new THREE.Mesh(boltGeo, emat(e.elem)); scene.add(m); bolts.set(e.shot.id, { m, sh: e.shot, col, x0: x, z0: z }); }
-      else if (e.kind === 'summon') spark(x, 1.6, z, col, 12, 2);
+      const a = heroAnim[e.i], [x, z] = MAP.slots[e.i], h = s.slots[e.i].h, id = h ? h.id : ''; a.atk = 0;
+      if (e.kind === 'melee') for (const [tx, tz] of e.to) { if (id === 'qiang') fx.punch(x, z, tx, tz, col, e.stun); else if (id === 'you') fx.stab(tx, tz, col, e.ex); else fx.slash(x, z, tx, tz, col, h ? h.lv : 1); }
+      else if (e.kind === 'pierce') { const [tx, tz] = e.to[0]; fx.lance(x, z, tx, tz, col, e.hit); }
+      else if (e.kind === 'blast') { const [tx, tz] = e.to[0]; fx.circle(x, z, tx, tz, e.r, col); }
+      else if (e.kind === 'bolt') { const B = BOLT[id] || BOLT.jie, m = new THREE.Mesh(B.geo, B.mat); m.scale.set(B.s[0], B.s[1], B.s[2]); m.position.set(x, 1.5, z); scene.add(m); bolts.set(e.shot.id, { m, sh: e.shot, col, x0: x, z0: z, B, tr: 0 }); if (id === 'senpai') fx.tracer(x, z, e.shot.tx, e.shot.tz, col); }
+      else if (e.kind === 'summon') fx.summon(x, z, col);
     }
     else if (e.k === 'boom') {
       if (e.id) { const b = bolts.get(e.id); if (b) { scene.remove(b.m); bolts.delete(e.id); } }
-      const big = e.r > .8; spark(e.x, 1, e.z, col, big ? 14 : 5, big ? 4 : 2.5); flash(e.x, 1.1, e.z, col, big ? 15 : 5, big ? .2 : .12);   // 常態命中只閃一下，大範圍才亮
-      if (big) { boom(e.x, e.z, e.r, col); if (e.elem === 'light') beam(e.x, 7, e.z, e.x, 0, e.z, col, .3, .22); if (e.elem === 'dark') beam(e.x, 0, e.z, e.x, 2.4, e.z, col, .5, .2); }
+      if (e.blast) { if (e.elem === 'light') fx.lightBlast(e.x, e.z, e.r, col); else fx.darkBlast(e.x, e.z, e.r, col, e.r > 2 ? 3 : e.r > 1.5 ? 2 : 1); }
+      else if (e.src === 'jie') fx.fireHit(e.x, e.z, e.r, col);
+      else if (e.src === 'xu') fx.poolFire(e.x, e.z, e.r, col);
+      else if (e.src === 'yan') fx.waterHit(e.x, e.z, col, e.lv >= 2);
+      else if (e.src === 'senpai') fx.snipeHit(e.x, e.z, col);
+      else fx.cardHit(e.x, e.z, col);
     }
-    else if (e.k === 'dmg') { const p = project(e.x, 2.2, e.z); ui.float(p[0], p[1], e.v, e.mul > 1 ? 'crit' : e.mul < 1 ? 'weak' : '', e.elem); }
-    else if (e.k === 'die') { const f = foeFig.get(e.f.id); if (f) { spark(e.f.x, .9, e.f.z, [1.6, 1.4, 1.0], e.f.max > 600 ? 40 : 12, 2.8); f.dispose(); foeFig.delete(e.f.id); } const p = project(e.f.x, 1.2, e.f.z); ui.coinFly(p[0], p[1], e.coin); if (e.f.max > 600) shake = .4; }
-    else if (e.k === 'leak') { const f = foeFig.get(e.f.id); if (f) { f.dispose(); foeFig.delete(e.f.id); } shake = .35; flash(office.clockPos[0], 1.8, office.clockPos[1], [1.8, .25, .2], 40, .5); ui.leak(e.n, e.f.type); }
-    else if (e.k === 'rat') { const f = new Fig(null, e.r.kind); f.place(e.r.x, e.r.z); ratFig.set(e.r.id, f); spark(e.r.x, .5, e.r.z, [1.2, 1, .8], 8, 1.5); }
+    else if (e.k === 'dmg') { const p = project(e.x, 2.2, e.z); ui.float(p[0], p[1], e.v, e.mul > 1 ? 'crit' : e.mul < 1 ? 'weak' : '', e.elem); if (e.mul > 1 && critN < 2) { critN++; fx.crit(e.x, e.z, col); } }
+    else if (e.k === 'die') { const f = foeFig.get(e.f.id), big = e.f.max > 600; if (f) { spark(e.f.x, .9, e.f.z, [1.6, 1.4, 1.0], big ? 40 : 8, 2.8); fx.papers(e.f.x, e.f.z, big ? 40 : e.f.type === 'foe_mini' ? 3 : 7, !!FOE[e.f.type].ghost); if (big) { fx.wave(e.f.x, e.f.z, 7, [1.8, 1.5, .8]); flash(e.f.x, 1.5, e.f.z, [1.8, 1.5, .8], 30, .4); } f.dispose(); foeFig.delete(e.f.id); } const p = project(e.f.x, 1.2, e.f.z); ui.coinFly(p[0], p[1], e.coin); if (big) shake = .4; }
+    else if (e.k === 'leak') { const f = foeFig.get(e.f.id); if (f) { f.dispose(); foeFig.delete(e.f.id); } shake = .35; flash(office.clockPos[0], 1.8, office.clockPos[1], [1.8, .25, .2], 40, .5); fx.wave(office.clockPos[0], office.clockPos[1], 3.5, [2, .3, .2]); ui.leak(e.n, e.f.type); }
+    else if (e.k === 'rat') { const f = new Fig(null, e.r.kind); f.place(e.r.x, e.r.z); ratFig.set(e.r.id, f); fx.summon(e.r.x, e.r.z, ELEM.summon.rgb); }
     else if (e.k === 'ratEnd') { const f = ratFig.get(e.r.id); if (f) { spark(e.r.x, .4, e.r.z, [1, 1, 1], 6, 1.5); f.dispose(); ratFig.delete(e.r.id); } }
-    else if (e.k === 'ratBite') spark(e.r.x - e.r.dx * .4, .5, e.r.z - e.r.dz * .4, [1.4, 1.2, 1], 3, 1.5);
-    else if (e.k === 'cast') { const c = e.kind === 'freeze' ? [0.4, 0.9, 1.6] : [1.7, 1.5, 0.3]; for (const i of e.to) { const [x, z] = MAP.slots[i]; beam(e.f.x, 1.6, e.f.z, x, 1.2, z, c, .09, .3); spark(x, 1.2, z, c, 14, 2.4); } ui.status(e.kind, e.to); }
-    else if (e.k === 'cure') { const [x0, z0] = MAP.slots[e.from], [x, z] = MAP.slots[e.to], c = ELEM.cure.rgb; beam(x0, 1.5, z0, x, 1.3, z, c, .08, .3); spark(x, 1.2, z, c, 16, 2.2, 3); boom(x, z, .9, c); }
-    else if (e.k === 'skill') { for (let i = 0; i < 12; i++) if (heroFig[i]) { const [x, z] = MAP.slots[i]; boom(x, z, 1.1, [1.6, 1.2, .4]); spark(x, 1.4, z, [1.6, 1.3, .5], 8, 2, 3); heroAnim[i].pop = .6; } shake = .15; ui.phase(e); }
+    else if (e.k === 'ratBite') fx.bite(e.x, e.z);
+    else if (e.k === 'cast') { const ice = e.kind === 'freeze', c = ice ? [0.4, 0.9, 1.6] : [1.7, 1.5, 0.3]; for (const i of e.to) { const [x, z] = MAP.slots[i]; fx.curse(e.f.x, e.f.z, x, z, c, ice); } ui.status(e.kind, e.to); }
+    else if (e.k === 'cure') { const [x0, z0] = MAP.slots[e.from], [x, z] = MAP.slots[e.to]; fx.cure(x0, z0, x, z, ELEM.cure.rgb); }
+    else if (e.k === 'skill') { for (let i = 0; i < 12; i++) if (heroFig[i]) { const [x, z] = MAP.slots[i]; fx.cheer(x, z); heroAnim[i].pop = .6; } fx.wave(TARGET.x, TARGET.z + 1.4, 15, [1.7, 1.25, .4]); shake = .15; ui.phase(e); }
     else if (e.k === 'wave' || e.k === 'clear' || e.k === 'won' || e.k === 'lost') ui.phase(e);
     sound(e);
   }
@@ -207,8 +222,13 @@ function draw(dt, sim) {
     if (!f || !h) continue; const a = heroAnim[i], [x, z] = MAP.slots[i], frozen = h.fz > 0;
     f.ice(frozen); f.buff(h.bAtk > 0 || h.bSpd > 0); a.pop = Math.max(0, a.pop - dt * 3);
     let px = x; if (h.pz > 0 && !frozen) { px += Math.sin(T * 60) * .04; if (rnd() < dt * 8) spark(x, 1.6, z, [1.7, 1.5, .3], 2, 1.5); }
-    f.place(px, z); f.w.scale.setScalar(1 + a.pop * .25); f.flash(s.skillT > 0 ? .012 + .006 * Math.sin(T * 12) : 0); if (s.skillT > 0 && rnd() < dt * 5) spark(x, 1.8, z, [1.6, 1.2, .4], 1, .8, 2.5);
+    f.place(px, z); f.w.scale.setScalar(1 + a.pop * .25); f.auraTick(T, !frozen, a.ph); f.flash((s.skillT > 0 ? .012 + .006 * Math.sin(T * 12) : 0) + (f.au && !frozen ? .012 + .008 * Math.sin(T * 2.6 + a.ph) : 0)); if (f.au && !frozen && rnd() < dt * 5) spark(x + (rnd() - .5) * 1.1, .15, z + (rnd() - .5) * 1.1, f.auc, 1, .25, 2.4); if (s.skillT > 0 && rnd() < dt * 5) spark(x, 1.8, z, [1.6, 1.2, .4], 1, .8, 2.5);
     if (frozen) continue;
+    // 輔助：開打時每隔一下往外送一圈，看得出罩到哪裡、罩到誰
+    const K = HERO[h.id].kind;
+    if ((K === 'buff' || K === 'haste' || K === 'slow') && sim > 0 && (s.phase === 'fight' || a.pulse < 1)) {
+      a.pulse = (a.pulse ?? 1) - sim; if (a.pulse <= 0) { a.pulse = 2.4; const r = statsOf(h.id, h.lv).range, al = []; if (K !== 'slow') s.slots.forEach((o, j) => { if (o.h && j !== i && (o.x - x) ** 2 + (o.z - z) ** 2 <= r * r) al.push([o.x, o.z]); }); fx.pulse(x, z, r, K === 'slow' ? [.4, .9, 1.7] : ELEM.sup.rgb, al); }
+    }
     const idle = !s.foes.length, dx = idle ? Math.sin(yaw + .25) : h.fx || .3, dz = idle ? Math.cos(yaw + .25) : h.fz2 || 1;
     if (a.atk >= 0) { a.atk += sim / (HERO[h.id].cd < .45 ? .3 : .52); if (a.atk >= 1) a.atk = -1; }
     if (a.atk >= 0) f.act('atk', dx, dz, 0, a.atk, dt); else f.act('idle', dx, dz, T * 5 + a.ph, 0, dt * (idle ? .5 : 1));
@@ -216,15 +236,16 @@ function draw(dt, sim) {
   for (const e of s.foes) { const f = foeFig.get(e.id); if (!f) continue; const hit = Math.max(0, .12 - (s.t - e.last)); f.act('walk', e.dx, e.dz, e.stun > 0 || e.block ? e.ph : e.ph + e.d * 3.9, 0, dt); f.place(e.x, e.z); f.flash(hit * 4); f.hp(e.hp / e.max); if (e.burnT > 0 && rnd() < dt * 10) spark(e.x, 1.2, e.z, [1.7, .6, .2], 1, .8, 2.5); if ((e.aura > 0 || e.slowK > 0) && rnd() < dt * 6) spark(e.x, .3, e.z, [.3, .8, 1.6], 1, .5, .3); if (e.stun > 0 && rnd() < dt * 12) spark(e.x, f.h + .3, e.z, [1.7, 1.5, .3], 1, 1.2, .5); }
   for (const r of s.rats) { const f = ratFig.get(r.id); if (f) { f.act('walk', r.dx, r.dz, T + r.id, 0, dt); f.place(r.x, r.z); } }
   for (const b of bolts.values()) {
-    const sh = b.sh, tot = Math.hypot(sh.tx - b.x0, sh.tz - b.z0) || 1, k = Math.min(1, Math.hypot(sh.x - b.x0, sh.z - b.z0) / tot);
-    b.m.position.set(sh.x, 1.5 - .6 * k + Math.sin(k * Math.PI) * .5, sh.z); b.m.rotation.set(T * 9, T * 7, 0);
-    if (rnd() < .3) spark(sh.x, b.m.position.y, sh.z, b.col.map(v => v * .4), 1, .5, 0);
+    const sh = b.sh, B = b.B, tot = Math.hypot(sh.tx - b.x0, sh.tz - b.z0) || 1, k = Math.min(1, Math.hypot(sh.x - b.x0, sh.z - b.z0) / tot), y = 1.5 - .6 * k + Math.sin(k * Math.PI) * B.arc;
+    b.m.position.set(sh.x, y, sh.z); if (B.spin) b.m.rotation.set(T * (B.spin === 1 ? 11 : 2), T * (B.spin === 1 ? 3 : 16), 0);
+    if (sim > 0) { if (B.trail) { fx.trail(sh.x, y, sh.z, b.col, B.trail); if (rnd() < .5) spark(sh.x, y, sh.z, b.col.map(v => v * .5), 1, .6, 0); } else if (rnd() < .3) spark(sh.x, y, sh.z, b.col.map(v => v * .4), 1, .5, 0); }
     if (sh.done) { scene.remove(b.m); bolts.delete(sh.id); }
   }
-  for (let i = beams.length - 1; i >= 0; i--) { const b = beams[i]; b.t -= dt; if (b.t <= 0) { scene.remove(b.m); b.m.material.dispose(); beams.splice(i, 1); } else { const k = b.t / b.life; b.m.scale.x = b.m.scale.y = b.w * k; } }
-  for (let i = booms.length - 1; i >= 0; i--) { const b = booms[i]; b.t -= dt; if (b.t <= 0) { scene.remove(b.m); b.m.geometry.dispose(); b.m.material.dispose(); booms.splice(i, 1); } else { const k = 1 - b.t / b.life, r = b.r * (.3 + .7 * Math.sqrt(k)); b.m.scale.set(r, 1, r); b.m.material.opacity = 1 - k; } }
+  if (!G.fxHold) fx.update(dt); critN = 0;
   for (const d of dyn) { d.t = Math.max(0, d.t - dt); d.l.intensity = d.peak * (d.t / d.dur) ** 2; }
-  for (const L of office.lamps) if (L.base) L.light.intensity = L.base * (1 + .025 * Math.sin(T * 2.1 + L.ph));
+  // 檯燈開越多，每盞就收一點：不然滿編時整間辦公室亮到發白，招式的光反而看不見
+  let lit = 0; for (const L of office.lamps) if (L.base) lit++; const lampK = 1 / (1 + Math.max(0, lit - 3) * .085);
+  for (const L of office.lamps) if (L.base) L.light.intensity = L.base * lampK * (1 + .025 * Math.sin(T * 2.1 + L.ph));
   office.clockLight.intensity = office.clockBase * (1 + .2 * Math.sin(T * 2.4)) * (s.lives <= 3 ? 1.5 : 1);
   if (s.lives <= 3) office.clockLight.color.setRGB(1, .3 + .2 * Math.sin(T * 6), .2);
   const LP = office.lamps;
@@ -280,9 +301,10 @@ canvas.addEventListener('click', e => {
 
 const G = {
   get s() { return s; }, C, project, select, showRange, get selected() { return selected; }, speed: 1, paused: false, hold: false, tutHold: false, lift: 0,
+  fx, ELEM, fxHold: false,
   restart(diff = 'normal') {
     for (let i = 0; i < 12; i++) { heroFig[i]?.dispose(); heroFig[i] = null; office.desks[i].set(false); }
-    for (const f of foeFig.values()) f.dispose(); foeFig.clear(); for (const f of ratFig.values()) f.dispose(); ratFig.clear(); for (const b of bolts.values()) scene.remove(b.m); bolts.clear();
+    for (const f of foeFig.values()) f.dispose(); foeFig.clear(); for (const f of ratFig.values()) f.dispose(); ratFig.clear(); for (const b of bolts.values()) scene.remove(b.m); bolts.clear(); fx.clear();
     s = C.newGame(MAP, (Math.random() * 1e9) | 0, diff); select(null); office.clockLight.color.set(0xffb14a);
   },
   sndLoaded,
@@ -306,7 +328,7 @@ function boot() {
     post.lights(office.pointLights.concat(dyn.map(d => d.l)));
     post.render(now / 1000);
     // 太慢就自動降一點解析度（只降不升，免得忽大忽小）
-    frames++; if (dt > .034) slow++; if (frames >= 90) { if (slow > 45) { if (quality > .55) { quality = Math.max(.55, quality - .15); resize(); } else post.nodof = true; } frames = slow = 0; }   // 降到底還是慢，就關掉景深模糊
+    frames++; if (dt > .034) slow++; if (frames >= 90) { if (slow > 45) { if (quality > .55) { quality = Math.max(.55, quality - .15); resize(); } else { post.nodof = true; fx.lite = true; } } frames = slow = 0; }   // 降到底還是慢，就關掉景深模糊
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);

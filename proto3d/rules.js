@@ -51,10 +51,10 @@ export const HERO = {
   mi: { tag: '大範圍', name: '小米', job: '光法師', elem: 'light', kind: 'blast', cost: 110, range: 4.6, atk: 36, cd: 2.3, r: [1.1, 1.6, 2.1], note: ['光爆，出手慢', '範圍變大', '範圍再變大'] },
   kevin: { tag: '大範圍', name: 'Kevin', job: '闇騎士', elem: 'dark', kind: 'blast', cost: 110, range: 4.6, atk: 36, cd: 2.3, r: [1.1, 1.6, 2.1], note: ['闇爆，出手慢', '範圍變大', '範圍再變大'] },
   senpai: { tag: '遠距狙擊', name: '學姊', job: '偵探', elem: 'light', kind: 'bolt', cost: 100, range: 6.6, atk: 62, cd: 2.6, pick: 'strong', note: ['遠距離狙擊最壯的', '更痛', '再更痛'] },
-  vivi: { tag: '加攻加速', name: 'Vivi', job: '公主', elem: 'sup', kind: 'buff', cost: 100, range: 3.4, atkUp: [0.2, 0.3, 0.4], spdUp: [0.15, 0.22, 0.3], note: ['附近同事加攻、加速', '加更多', '加再更多'] },
-  cha: { tag: '加攻速', name: '茶茶', job: '補給', elem: 'sup', kind: 'haste', cost: 70, range: 3.3, spdUp: [0.3, 0.45, 0.6], note: ['送珍奶，附近同事出手變快', '更快', '再更快'] },
-  an: { tag: '敵人變慢', name: '小安', job: '工安', elem: 'sup', kind: 'slow', cost: 70, range: 3.1, slow: [0.25, 0.35, 0.45], note: ['放三角錐，附近敵人變慢', '更慢', '再更慢'] },
-  fairy: { tag: '老鼠擋路', name: '鼠仙女', job: '召喚師', elem: 'summon', kind: 'summon', cost: 110, range: 4.0, every: [7, 6, 5], note: ['召喚灰鼠擋路咬人', '多一隻耐打的棕鼠', '一次召兩隻'] },
+  vivi: { tag: '加攻加速', name: 'Vivi', job: '公主', elem: 'sup', kind: 'buff', cost: 100, range: [3.4, 4.2, 5.0], atkUp: [0.2, 0.3, 0.4], spdUp: [0.15, 0.22, 0.3], note: ['附近同事加攻、加速', '加更多，範圍罩到另一排', '加再更多，範圍更大'] },
+  cha: { tag: '加攻速', name: '茶茶', job: '補給', elem: 'sup', kind: 'haste', cost: 70, range: [3.3, 4.1, 4.9], spdUp: [0.3, 0.45, 0.6], note: ['送珍奶，附近同事出手變快', '更快，範圍罩到另一排', '再更快，範圍更大'] },
+  an: { tag: '敵人變慢', name: '小安', job: '工安', elem: 'sup', kind: 'slow', cost: 70, range: [3.1, 3.8, 4.5], slow: [0.25, 0.35, 0.45], note: ['放三角錐，附近敵人變慢', '更慢，範圍變大', '再更慢，範圍更大'] },
+  fairy: { tag: '老鼠擋路', name: '鼠仙女', job: '召喚師', elem: 'summon', kind: 'summon', cost: 110, range: 4.0, every: 7, rats: [1, 2, 3], note: ['召喚一隻灰鼠擋路咬人', '一次兩隻：灰鼠加耐打的棕鼠', '一次三隻老鼠'] },
   wu: { tag: '解冰凍麻痺', name: '小蝶', job: '舞者', elem: 'cure', kind: 'cure', cost: 60, range: [3.6, 4.6, 5.6], note: ['自動解除附近同事的冰凍、麻痺', '範圍變大', '解除後 4 秒不再中'] },
 };
 export const HERO_ORDER = ['kui', 'jie', 'yan', 'zhe', 'qiang', 'mi', 'kevin', 'vivi', 'cha', 'an', 'fairy', 'wu', 'you', 'xu', 'heilun', 'senpai'];
@@ -89,14 +89,16 @@ export const WAVES = [
   [['foe_cart', 5, 2.3, 0], ['foe_knight', 6, 2.1, 2], ['foe_auntie', 3, 3, 5], ['foe_chief', 2, 7, 6]],
   [['foe_minion', 14, 0.75, 0], ['foe_ghost', 8, 1.3, 3], ['foe_auntie', 4, 2.6, 5], ['foe_knight', 3, 3, 8], ['foe_boss', 1, 0, 12]],
 ];
-export const RAT = { grey: { hp: 40, sp: 3.2, bite: 7, life: 14 }, brown: { hp: 95, sp: 2.2, bite: 9, life: 16 } };
+// 老鼠每 0.5 秒咬一口（bite＝一口的傷害）。升級是多一隻，不是每隻變強
+export const RAT = { grey: { hp: 45, sp: 3.2, bite: 10, life: 14 }, brown: { hp: 100, sp: 2.2, bite: 13, life: 16 } };
+export const RAT_KINDS = [['grey'], ['grey', 'brown'], ['grey', 'brown', 'grey']];
 
 const at = (v, lv) => (Array.isArray(v) ? v[lv - 1] : v);
 // 給介面用：某位同事某一級的數值
 export function statsOf(id, lv = 1) {
   const h = HERO[id], o = { id, lv, name: h.name, job: h.job, tag: h.tag, elem: h.elem, kind: h.kind, cost: h.cost, range: at(h.range, lv), note: h.note[lv - 1] };
   if (h.atk) { o.atk = Math.round(h.atk * LV[lv - 1]); o.cd = h.cd; o.rate = +(1 / h.cd).toFixed(1); }
-  for (const k of ['n', 'splash', 'burn', 'wet', 'r', 'stun', 'execute', 'bounty', 'atkUp', 'spdUp', 'slow', 'every']) if (h[k] !== undefined) o[k] = at(h[k], lv);
+  for (const k of ['n', 'splash', 'burn', 'wet', 'r', 'stun', 'execute', 'bounty', 'atkUp', 'spdUp', 'slow', 'every', 'rats']) if (h[k] !== undefined) o[k] = at(h[k], lv);
   if (h.armorK) o.armorK = h.armorK; if (h.pick) o.pick = h.pick;
   return o;
 }
